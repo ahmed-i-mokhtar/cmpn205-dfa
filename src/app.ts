@@ -1,11 +1,8 @@
 // Here, we import the things we need from other script files 
 import Game from './common/game';
-import TriangleScene from './scenes/01-triangle';
-import ColoredTriangleScene1 from './scenes/02-colored-triangle-1';
-import ColoredTriangleScene2 from './scenes/03-colored-triangle-2';
-import QuadScene from './scenes/04-quad';
-import UniformScene from './scenes/05-uniform';
-import RaytracingScene from './scenes/06-raytracing';
+import startMenu from './scenes/start-menu';
+import inGame from './scenes/in-game';
+import podium from './scenes/podium';
 
 // First thing we need is to get the canvas on which we draw our scenes
 var canvas: HTMLCanvasElement = document.querySelector("#app");
@@ -18,14 +15,11 @@ const game = new Game(canvas);
 
 // Here we list all our scenes and our initial scene
 const scenes = {
-    "triangle": TriangleScene,
-    "colored-triangle-1": ColoredTriangleScene1,
-    "colored-triangle-2": ColoredTriangleScene2,
-    "quad": QuadScene,
-    "uniform": UniformScene,
-    "ray-tracing": RaytracingScene
+    "start-menu": startMenu,
+    "in-game": inGame,
+    "podium": podium,
 };
-const initialScene = "triangle";
+const initialScene = "startMenu";
 
 // Then we add those scenes to the game object and ask it to start the initial scene
 game.addScenes(scenes);

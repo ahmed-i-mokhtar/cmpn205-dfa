@@ -11759,523 +11759,7 @@ function () {
 }();
 
 exports.default = ShaderProgram;
-},{}],"src/scenes/01-triangle.ts":[function(require,module,exports) {
-"use strict";
-
-var __extends = this && this.__extends || function () {
-  var _extendStatics = function extendStatics(d, b) {
-    _extendStatics = Object.setPrototypeOf || {
-      __proto__: []
-    } instanceof Array && function (d, b) {
-      d.__proto__ = b;
-    } || function (d, b) {
-      for (var p in b) {
-        if (b.hasOwnProperty(p)) d[p] = b[p];
-      }
-    };
-
-    return _extendStatics(d, b);
-  };
-
-  return function (d, b) {
-    _extendStatics(d, b);
-
-    function __() {
-      this.constructor = d;
-    }
-
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-  };
-}();
-
-var __importDefault = this && this.__importDefault || function (mod) {
-  return mod && mod.__esModule ? mod : {
-    "default": mod
-  };
-};
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var game_1 = require("../common/game");
-
-var shader_program_1 = __importDefault(require("../common/shader-program")); // In this scene we will draw one white triangle
-// The goal of this scene is to learn about:
-// 1- Loading and using Shaders
-// 2- Creating a Buffer and a VertexArray
-// 3- Drawing using DrawArrays
-
-
-var TriangleScene =
-/** @class */
-function (_super) {
-  __extends(TriangleScene, _super);
-
-  function TriangleScene() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
-
-  TriangleScene.prototype.load = function () {
-    var _a; // We will ask the loader to load the shader file "simple.vert" and "simple.frag" as text
-
-
-    this.game.loader.load((_a = {}, _a["simple.vert"] = {
-      url: 'shaders/simple.vert',
-      type: 'text'
-    }, _a["simple.frag"] = {
-      url: 'shaders/simple.frag',
-      type: 'text'
-    }, _a));
-  };
-
-  TriangleScene.prototype.start = function () {
-    this.program = new shader_program_1.default(this.gl); // Create a shader program
-
-    this.program.attach(this.game.loader.resources["simple.vert"], this.gl.VERTEX_SHADER); // Compile and attach the vertex shader
-
-    this.program.attach(this.game.loader.resources["simple.frag"], this.gl.FRAGMENT_SHADER); // Compile and attach the fragment shader
-
-    this.program.link(); // Link the shaders together
-    // Store our vertices in an array on the RAM
-    // Since we have 3 vertices with 3 components (x,y,z) each, we need 9 numbers
-
-    var vertices = new Float32Array([0.5, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, 0.5, 0.0, -0.5, -0.5, 0.0]);
-    this.VAO = this.gl.createVertexArray();
-    this.VBO = this.gl.createBuffer(); // We will bind our Vertex Array Object here so that it will listen to "enableVertexAttribArray" and "vertexAttribPointer" and remember them. This will be used for drawing.
-
-    this.gl.bindVertexArray(this.VAO); // To deal with buffers, we need to bind them to a target first. Since our VBO will contain an array of vertices, we will bind it to the ARRAY_BUFFER target.
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.VBO); // Send the data from the vertices array to the buffer. This will move the data from the GPU to the CPU
-    // the usage parameter adds a hint to the GPU driver on where to allocate the buffer for optimization
-    // gl.STATIC_DRAW means that we will probably never change this data again
-    // gl.DYNAMIC_DRAW is recommended when the data changes but not very often
-    // gl.STREAM_DRAW is recommended for data that keeps changing a lot (once or even more per frame)
-
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW); // It is important to note that buffer does not understand what the data means. All it sees are a big blob of byte and nothing more.
-    // The next few lines will define how to read the data from the buffer in order to supply them to the vertex shader
-    // First, we need to tell webgl which attribute(s) will read the data in our buffer.
-    // An attribute is defined by its location. If we don't know the location of an attribute, we can use "getAttribLocation" to get its location.
-    // NOTE: in the shader, we wrote "layout(location=0)" before the attribute so we already know that the location of the attribute is 0. We can replace the "getAttribLocation" function with 0 and the scene will still work.
-
-    var positionAttrib = this.gl.getAttribLocation(this.program.program, "position"); // We need to enable the attribute so that it reads the buffer data
-
-    this.gl.enableVertexAttribArray(positionAttrib); // This command defines how the data is read from the buffer and sent to the attribute
-    // Size: How many components to read from the buffer for each vertex (3 in this case since we read a 3D vector)
-    // Type: The data type of each read component (gl.FLOAT in this case since we sent a Float32Array to the buffer)
-    // Normalized: if set to true, the value in the buffer is divided by the maximum value for that data type before being sent to the attribute
-    //             For example, if the type is gl.BYTE, the normalization will change the value range from [-128, 127] to [-1, 1]
-    //             If the type is gl.UNSIGNED_BYTE, the normalization will change the value range from [0, 255] to [0, 1]
-    //             Here, we don't need normalization so we set it to false
-    // Stride: It define how many bytes the vertex pointer should proceed in the buffer after reading one vertex
-    //         In this case, each vertex is 3 floats so the size of a vertex is 3*sizeof(Float)=3*4=12 bytes, so we should set the stride to 12
-    //         However, a stride of "0" is special and it tells webgl to calculate the true stride itself which it will automatically infere from the size and type parameters
-    // Offset: How many bytes to skip from the start of the buffer (0 in this case since we don't want to skip anything)
-
-    this.gl.vertexAttribPointer(positionAttrib, 3, this.gl.FLOAT, false, 0, 0); // The vertex array object has now recorded the previous commands (enableVertexAttribArray, vertexAttribPointer) and is ready to be used, so we unbind it to prevent it from accidently recording unwanted commands.
-
-    this.gl.bindVertexArray(null); // Tell webgl to use Black as the clear color whenever we ask it to clear a frame
-
-    this.gl.clearColor(0, 0, 0, 1);
-  };
-
-  TriangleScene.prototype.draw = function (deltaTime) {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT); // Tell webgl to clear the color of the whole frame
-
-    this.gl.useProgram(this.program.program); // Tell webgl to use the program we loaded above whenever we use a draw command 
-
-    this.gl.bindVertexArray(this.VAO); // Since the VAO remember how to read the buffer while drawing, we bind it before drawing
-    // Tell webgl to draw triangles out of 3 vertices
-    // mode: what we will draw (triangles in this case)
-    // first: The index of the first vertex in the buffer to start drawing from (0 in this case, we start from the very beginning of the buffer)
-    // count: how many vertices to draw (3 in this case since we are drawing a triangle)
-
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 3); // Don't forget to unbind the VAO
-
-    this.gl.bindVertexArray(null);
-  };
-
-  TriangleScene.prototype.end = function () {
-    // Here, we will free all the resources we used
-    this.program.dispose();
-    this.program = null;
-    this.gl.deleteVertexArray(this.VAO);
-    this.gl.deleteBuffer(this.VBO);
-  };
-
-  return TriangleScene;
-}(game_1.Scene);
-
-exports.default = TriangleScene;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/scenes/02-colored-triangle-1.ts":[function(require,module,exports) {
-"use strict";
-
-var __extends = this && this.__extends || function () {
-  var _extendStatics = function extendStatics(d, b) {
-    _extendStatics = Object.setPrototypeOf || {
-      __proto__: []
-    } instanceof Array && function (d, b) {
-      d.__proto__ = b;
-    } || function (d, b) {
-      for (var p in b) {
-        if (b.hasOwnProperty(p)) d[p] = b[p];
-      }
-    };
-
-    return _extendStatics(d, b);
-  };
-
-  return function (d, b) {
-    _extendStatics(d, b);
-
-    function __() {
-      this.constructor = d;
-    }
-
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-  };
-}();
-
-var __importDefault = this && this.__importDefault || function (mod) {
-  return mod && mod.__esModule ? mod : {
-    "default": mod
-  };
-};
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var game_1 = require("../common/game");
-
-var shader_program_1 = __importDefault(require("../common/shader-program")); // In this scene we will draw one colored triangle
-// The goal of this scene is to learn about:
-// 1- Using multiple buffers to send extra data in our vertices
-// 2- How the GPU deals with extra data
-// 3- Sending data across shaders
-
-
-var ColoredTriangleScene1 =
-/** @class */
-function (_super) {
-  __extends(ColoredTriangleScene1, _super);
-
-  function ColoredTriangleScene1() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
-
-  ColoredTriangleScene1.prototype.load = function () {
-    var _a; // We will use a shader that can read 2 attributes instead of one, then use the color attribute while drawing in the frame buffer
-
-
-    this.game.loader.load((_a = {}, _a["color.vert"] = {
-      url: 'shaders/color.vert',
-      type: 'text'
-    }, _a["color.frag"] = {
-      url: 'shaders/color.frag',
-      type: 'text'
-    }, _a));
-  };
-
-  ColoredTriangleScene1.prototype.start = function () {
-    // Create a shader program as usual
-    this.program = new shader_program_1.default(this.gl);
-    this.program.attach(this.game.loader.resources["color.vert"], this.gl.VERTEX_SHADER);
-    this.program.attach(this.game.loader.resources["color.frag"], this.gl.FRAGMENT_SHADER);
-    this.program.link();
-    var positions = new Float32Array([-0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0]); // We will store colors in unsigned byte but we can use other formats too
-
-    var colors = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]);
-    this.VAO = this.gl.createVertexArray();
-    this.positionVBO = this.gl.createBuffer();
-    this.colorVBO = this.gl.createBuffer();
-    this.gl.bindVertexArray(this.VAO); // First, we bind and fill the position VBO
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionVBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
-    var positionAttrib = this.gl.getAttribLocation(this.program.program, "position");
-    this.gl.enableVertexAttribArray(positionAttrib); // This call knows that it will read from positionVBO since it is the one currently bound to ARRAY_BUFFER
-
-    this.gl.vertexAttribPointer(positionAttrib, 3, this.gl.FLOAT, false, 0, 0); // Second, we bind and fill the color VBO (by the way, order doesn't matter, we could have setup the color VBP before the position VBO if we wanted)
-
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorVBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
-    var colorAttrib = this.gl.getAttribLocation(this.program.program, "color");
-    this.gl.enableVertexAttribArray(colorAttrib); // This call knows that it will read from colorVBO since it is the one currently bound to ARRAY_BUFFER
-    // We will set the normalize param to true since colors in glsl are from 0 to 1 and our color are represented in unsigned byte (range from 0 to 255)
-
-    this.gl.vertexAttribPointer(colorAttrib, 4, this.gl.UNSIGNED_BYTE, true, 0, 0); // Our VAO already knows that the data will be read from 2 buffer since it stored 2 vertexAttribPointer, each reading from a different buffer
-
-    this.gl.bindVertexArray(null);
-    this.gl.clearColor(0, 0, 0, 1);
-  };
-
-  ColoredTriangleScene1.prototype.draw = function (deltaTime) {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.gl.useProgram(this.program.program); // We will draw using our VAO as usual
-
-    this.gl.bindVertexArray(this.VAO);
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
-    this.gl.bindVertexArray(null);
-  };
-
-  ColoredTriangleScene1.prototype.end = function () {
-    this.program.dispose();
-    this.program = null;
-    this.gl.deleteVertexArray(this.VAO);
-    this.gl.deleteBuffer(this.positionVBO);
-    this.gl.deleteBuffer(this.colorVBO);
-  };
-
-  return ColoredTriangleScene1;
-}(game_1.Scene);
-
-exports.default = ColoredTriangleScene1;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/scenes/03-colored-triangle-2.ts":[function(require,module,exports) {
-"use strict";
-
-var __extends = this && this.__extends || function () {
-  var _extendStatics = function extendStatics(d, b) {
-    _extendStatics = Object.setPrototypeOf || {
-      __proto__: []
-    } instanceof Array && function (d, b) {
-      d.__proto__ = b;
-    } || function (d, b) {
-      for (var p in b) {
-        if (b.hasOwnProperty(p)) d[p] = b[p];
-      }
-    };
-
-    return _extendStatics(d, b);
-  };
-
-  return function (d, b) {
-    _extendStatics(d, b);
-
-    function __() {
-      this.constructor = d;
-    }
-
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-  };
-}();
-
-var __importDefault = this && this.__importDefault || function (mod) {
-  return mod && mod.__esModule ? mod : {
-    "default": mod
-  };
-};
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var game_1 = require("../common/game");
-
-var shader_program_1 = __importDefault(require("../common/shader-program")); // In this scene we will draw one colored triangle
-// The goal of this scene is to learn about:
-// 1- Using a single buffer to feed multiple attributes
-
-
-var ColoredTriangleScene2 =
-/** @class */
-function (_super) {
-  __extends(ColoredTriangleScene2, _super);
-
-  function ColoredTriangleScene2() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
-
-  ColoredTriangleScene2.prototype.load = function () {
-    var _a; // We will use the exact same shader we used in the previous scene. No changes are needed. 
-
-
-    this.game.loader.load((_a = {}, _a["color.vert"] = {
-      url: 'shaders/color.vert',
-      type: 'text'
-    }, _a["color.frag"] = {
-      url: 'shaders/color.frag',
-      type: 'text'
-    }, _a));
-  };
-
-  ColoredTriangleScene2.prototype.start = function () {
-    this.program = new shader_program_1.default(this.gl);
-    this.program.attach(this.game.loader.resources["color.vert"], this.gl.VERTEX_SHADER);
-    this.program.attach(this.game.loader.resources["color.frag"], this.gl.FRAGMENT_SHADER);
-    this.program.link(); // We will put the position and color data for triangle in one buffer
-    // Every 7 numbers represent 1 vertex (x,y,z,r,g,b,a)
-    // We choose Float32 for both position and color since Uint8 is not suitable for positions
-
-    var vertices = new Float32Array([-0.5, -0.5, 0.0, 1, 0, 0, 1, 0.5, -0.5, 0.0, 0, 1, 0, 1, 0.0, 0.5, 0.0, 0, 0, 1, 1]); // Note: we could have used a ArrayBuffer to have a mixed format (float32 for position and Uint8 for color) but I didn't do so just because it felt bothersome.
-
-    this.VAO = this.gl.createVertexArray();
-    this.VBO = this.gl.createBuffer();
-    this.gl.bindVertexArray(this.VAO);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.VBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
-    var positionAttrib = this.gl.getAttribLocation(this.program.program, "position");
-    this.gl.enableVertexAttribArray(positionAttrib); // Note that we need to set the stride ourselves since the default value (3*4) is not suitable for our buffer (each vertex is 7*4 bytes after the previous one)
-
-    this.gl.vertexAttribPointer(positionAttrib, 3, this.gl.FLOAT, false, 7 * 4, 0);
-    var colorAttrib = this.gl.getAttribLocation(this.program.program, "color");
-    this.gl.enableVertexAttribArray(colorAttrib); // We set the same stride as above (7*4) but we set the offset to 3*4 since we need to skip the first 3 floats which belong to the first vertex position
-
-    this.gl.vertexAttribPointer(colorAttrib, 4, this.gl.FLOAT, false, 7 * 4, 3 * 4); // Now the VAO knows that we have 2 attributes and that both of them read from the same buffer.
-
-    this.gl.bindVertexArray(null);
-    this.gl.clearColor(0, 0, 0, 1);
-  };
-
-  ColoredTriangleScene2.prototype.draw = function (deltaTime) {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.gl.useProgram(this.program.program);
-    this.gl.bindVertexArray(this.VAO);
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
-    this.gl.bindVertexArray(null);
-  };
-
-  ColoredTriangleScene2.prototype.end = function () {
-    this.program.dispose();
-    this.program = null;
-    this.gl.deleteVertexArray(this.VAO);
-    this.gl.deleteBuffer(this.VBO);
-  };
-
-  return ColoredTriangleScene2;
-}(game_1.Scene);
-
-exports.default = ColoredTriangleScene2;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/scenes/04-quad.ts":[function(require,module,exports) {
-"use strict";
-
-var __extends = this && this.__extends || function () {
-  var _extendStatics = function extendStatics(d, b) {
-    _extendStatics = Object.setPrototypeOf || {
-      __proto__: []
-    } instanceof Array && function (d, b) {
-      d.__proto__ = b;
-    } || function (d, b) {
-      for (var p in b) {
-        if (b.hasOwnProperty(p)) d[p] = b[p];
-      }
-    };
-
-    return _extendStatics(d, b);
-  };
-
-  return function (d, b) {
-    _extendStatics(d, b);
-
-    function __() {
-      this.constructor = d;
-    }
-
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-  };
-}();
-
-var __importDefault = this && this.__importDefault || function (mod) {
-  return mod && mod.__esModule ? mod : {
-    "default": mod
-  };
-};
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var game_1 = require("../common/game");
-
-var shader_program_1 = __importDefault(require("../common/shader-program")); // In this scene we will draw one colored rectangle
-// The goal of this scene is to learn about:
-// 1- How to draw more complex shapes
-// 2- How to use Element buffers to avoid redundant vertices and optimize our memory usage
-
-
-var QuadScene =
-/** @class */
-function (_super) {
-  __extends(QuadScene, _super);
-
-  function QuadScene() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
-
-  QuadScene.prototype.load = function () {
-    var _a; // We will still use the same shader. No changes are needed
-
-
-    this.game.loader.load((_a = {}, _a["color.vert"] = {
-      url: 'shaders/color.vert',
-      type: 'text'
-    }, _a["color.frag"] = {
-      url: 'shaders/color.frag',
-      type: 'text'
-    }, _a));
-  };
-
-  QuadScene.prototype.start = function () {
-    this.program = new shader_program_1.default(this.gl);
-    this.program.attach(this.game.loader.resources["color.vert"], this.gl.VERTEX_SHADER);
-    this.program.attach(this.game.loader.resources["color.frag"], this.gl.FRAGMENT_SHADER);
-    this.program.link(); // Notice that we will use only 4 vertices yet draw 2 triangles
-
-    var positions = new Float32Array([-0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]);
-    var colors = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 0, 255, 255]); // This will be the data in the Elements Buffer. There are 6 elements since we draw 2 triangles
-    // Each number in the elements buffer represent the index of the vertex needed to draw the triangle
-    // We will use Uint32 but we can other unsigned integral types
-
-    var elements = new Uint32Array([0, 1, 2, 2, 3, 0]);
-    this.VAO = this.gl.createVertexArray();
-    this.positionVBO = this.gl.createBuffer();
-    this.colorVBO = this.gl.createBuffer();
-    this.EBO = this.gl.createBuffer(); // We will create an additional buffer to store the elements
-
-    this.gl.bindVertexArray(this.VAO);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionVBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
-    var positionAttrib = this.gl.getAttribLocation(this.program.program, "position");
-    this.gl.enableVertexAttribArray(positionAttrib);
-    this.gl.vertexAttribPointer(positionAttrib, 3, this.gl.FLOAT, false, 0, 0);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorVBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
-    var colorAttrib = this.gl.getAttribLocation(this.program.program, "color");
-    this.gl.enableVertexAttribArray(colorAttrib);
-    this.gl.vertexAttribPointer(colorAttrib, 4, this.gl.UNSIGNED_BYTE, true, 0, 0);
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.EBO); // Element buffers are bound to the ELEMENT_ARRAY_BUFFER target unlike the vertex buffers which are bound to ARRAY_BUFFER
-
-    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, elements, this.gl.STATIC_DRAW); // Besides storing "enableVertexAttribArray" and "vertexAttribPointer", the VAO will store "bindBuffer" if the target is "ELEMENT_ARRAY_BUFFER"
-
-    this.gl.bindVertexArray(null);
-    this.gl.clearColor(0, 0, 0, 1);
-  };
-
-  QuadScene.prototype.draw = function (deltaTime) {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.gl.useProgram(this.program.program);
-    this.gl.bindVertexArray(this.VAO); // When using an Element buffer, we use "drawElements" instead of "drawArrays"
-    // We have to define the data type of our elements here (unlike vertices where the data type is defined in "vertexAttribPointer")
-    // the 2nd param is the number of elements to draw, and the 4th param is the index of the first vertex to start drawing from.
-
-    this.gl.drawElements(this.gl.TRIANGLES, 6, this.gl.UNSIGNED_INT, 0);
-    this.gl.bindVertexArray(null);
-  };
-
-  QuadScene.prototype.end = function () {
-    this.program.dispose();
-    this.program = null;
-    this.gl.deleteVertexArray(this.VAO);
-    this.gl.deleteBuffer(this.positionVBO);
-    this.gl.deleteBuffer(this.colorVBO);
-    this.gl.deleteBuffer(this.EBO); // Don't forget to delete the EBO
-  };
-
-  return QuadScene;
-}(game_1.Scene);
-
-exports.default = QuadScene;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/scenes/05-uniform.ts":[function(require,module,exports) {
+},{}],"src/scenes/start-menu.ts":[function(require,module,exports) {
 "use strict";
 
 var __extends = this && this.__extends || function () {
@@ -12411,7 +11895,7 @@ function (_super) {
 }(game_1.Scene);
 
 exports.default = UniformScene;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts","gl-matrix":"node_modules/gl-matrix/esm/index.js"}],"src/scenes/06-raytracing.ts":[function(require,module,exports) {
+},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts","gl-matrix":"node_modules/gl-matrix/esm/index.js"}],"src/scenes/in-game.ts":[function(require,module,exports) {
 "use strict";
 
 var __extends = this && this.__extends || function () {
@@ -12511,7 +11995,9 @@ function (_super) {
 }(game_1.Scene);
 
 exports.default = RaytracingScene;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/app.ts":[function(require,module,exports) {
+},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/scenes/podium.ts":[function(require,module,exports) {
+
+},{}],"src/app.ts":[function(require,module,exports) {
 "use strict";
 
 var __importDefault = this && this.__importDefault || function (mod) {
@@ -12526,17 +12012,11 @@ Object.defineProperty(exports, "__esModule", {
 
 var game_1 = __importDefault(require("./common/game"));
 
-var _01_triangle_1 = __importDefault(require("./scenes/01-triangle"));
+var start_menu_1 = __importDefault(require("./scenes/start-menu"));
 
-var _02_colored_triangle_1_1 = __importDefault(require("./scenes/02-colored-triangle-1"));
+var in_game_1 = __importDefault(require("./scenes/in-game"));
 
-var _03_colored_triangle_2_1 = __importDefault(require("./scenes/03-colored-triangle-2"));
-
-var _04_quad_1 = __importDefault(require("./scenes/04-quad"));
-
-var _05_uniform_1 = __importDefault(require("./scenes/05-uniform"));
-
-var _06_raytracing_1 = __importDefault(require("./scenes/06-raytracing")); // First thing we need is to get the canvas on which we draw our scenes
+var podium_1 = __importDefault(require("./scenes/podium")); // First thing we need is to get the canvas on which we draw our scenes
 
 
 var canvas = document.querySelector("#app");
@@ -12546,14 +12026,11 @@ canvas.height = window.innerHeight; // Then we create an instance of the game cl
 var game = new game_1.default(canvas); // Here we list all our scenes and our initial scene
 
 var scenes = {
-  "triangle": _01_triangle_1.default,
-  "colored-triangle-1": _02_colored_triangle_1_1.default,
-  "colored-triangle-2": _03_colored_triangle_2_1.default,
-  "quad": _04_quad_1.default,
-  "uniform": _05_uniform_1.default,
-  "ray-tracing": _06_raytracing_1.default
+  "start-menu": start_menu_1.default,
+  "in-game": in_game_1.default,
+  "podium": podium_1.default
 };
-var initialScene = "triangle"; // Then we add those scenes to the game object and ask it to start the initial scene
+var initialScene = "startMenu"; // Then we add those scenes to the game object and ask it to start the initial scene
 
 game.addScenes(scenes);
 game.startScene(initialScene); // Here we setup a selector element to switch scenes from the webpage
@@ -12571,7 +12048,7 @@ selector.value = initialScene;
 selector.addEventListener("change", function () {
   game.startScene(selector.value);
 });
-},{"./common/game":"src/common/game.ts","./scenes/01-triangle":"src/scenes/01-triangle.ts","./scenes/02-colored-triangle-1":"src/scenes/02-colored-triangle-1.ts","./scenes/03-colored-triangle-2":"src/scenes/03-colored-triangle-2.ts","./scenes/04-quad":"src/scenes/04-quad.ts","./scenes/05-uniform":"src/scenes/05-uniform.ts","./scenes/06-raytracing":"src/scenes/06-raytracing.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./common/game":"src/common/game.ts","./scenes/start-menu":"src/scenes/start-menu.ts","./scenes/in-game":"src/scenes/in-game.ts","./scenes/podium":"src/scenes/podium.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -12599,7 +12076,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34625" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36877" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
