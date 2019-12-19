@@ -117,2416 +117,7 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"node_modules/process/browser.js":[function(require,module,exports) {
-
-// shim for using process in browser
-var process = module.exports = {}; // cached from whatever global is present so that test runners that stub it
-// don't break things.  But we need to wrap it in a try catch in case it is
-// wrapped in strict mode code which doesn't define any globals.  It's inside a
-// function because try/catches deoptimize in certain engines.
-
-var cachedSetTimeout;
-var cachedClearTimeout;
-
-function defaultSetTimout() {
-  throw new Error('setTimeout has not been defined');
-}
-
-function defaultClearTimeout() {
-  throw new Error('clearTimeout has not been defined');
-}
-
-(function () {
-  try {
-    if (typeof setTimeout === 'function') {
-      cachedSetTimeout = setTimeout;
-    } else {
-      cachedSetTimeout = defaultSetTimout;
-    }
-  } catch (e) {
-    cachedSetTimeout = defaultSetTimout;
-  }
-
-  try {
-    if (typeof clearTimeout === 'function') {
-      cachedClearTimeout = clearTimeout;
-    } else {
-      cachedClearTimeout = defaultClearTimeout;
-    }
-  } catch (e) {
-    cachedClearTimeout = defaultClearTimeout;
-  }
-})();
-
-function runTimeout(fun) {
-  if (cachedSetTimeout === setTimeout) {
-    //normal enviroments in sane situations
-    return setTimeout(fun, 0);
-  } // if setTimeout wasn't available but was latter defined
-
-
-  if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
-    cachedSetTimeout = setTimeout;
-    return setTimeout(fun, 0);
-  }
-
-  try {
-    // when when somebody has screwed with setTimeout but no I.E. maddness
-    return cachedSetTimeout(fun, 0);
-  } catch (e) {
-    try {
-      // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
-      return cachedSetTimeout.call(null, fun, 0);
-    } catch (e) {
-      // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
-      return cachedSetTimeout.call(this, fun, 0);
-    }
-  }
-}
-
-function runClearTimeout(marker) {
-  if (cachedClearTimeout === clearTimeout) {
-    //normal enviroments in sane situations
-    return clearTimeout(marker);
-  } // if clearTimeout wasn't available but was latter defined
-
-
-  if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
-    cachedClearTimeout = clearTimeout;
-    return clearTimeout(marker);
-  }
-
-  try {
-    // when when somebody has screwed with setTimeout but no I.E. maddness
-    return cachedClearTimeout(marker);
-  } catch (e) {
-    try {
-      // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
-      return cachedClearTimeout.call(null, marker);
-    } catch (e) {
-      // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
-      // Some versions of I.E. have different rules for clearTimeout vs setTimeout
-      return cachedClearTimeout.call(this, marker);
-    }
-  }
-}
-
-var queue = [];
-var draining = false;
-var currentQueue;
-var queueIndex = -1;
-
-function cleanUpNextTick() {
-  if (!draining || !currentQueue) {
-    return;
-  }
-
-  draining = false;
-
-  if (currentQueue.length) {
-    queue = currentQueue.concat(queue);
-  } else {
-    queueIndex = -1;
-  }
-
-  if (queue.length) {
-    drainQueue();
-  }
-}
-
-function drainQueue() {
-  if (draining) {
-    return;
-  }
-
-  var timeout = runTimeout(cleanUpNextTick);
-  draining = true;
-  var len = queue.length;
-
-  while (len) {
-    currentQueue = queue;
-    queue = [];
-
-    while (++queueIndex < len) {
-      if (currentQueue) {
-        currentQueue[queueIndex].run();
-      }
-    }
-
-    queueIndex = -1;
-    len = queue.length;
-  }
-
-  currentQueue = null;
-  draining = false;
-  runClearTimeout(timeout);
-}
-
-process.nextTick = function (fun) {
-  var args = new Array(arguments.length - 1);
-
-  if (arguments.length > 1) {
-    for (var i = 1; i < arguments.length; i++) {
-      args[i - 1] = arguments[i];
-    }
-  }
-
-  queue.push(new Item(fun, args));
-
-  if (queue.length === 1 && !draining) {
-    runTimeout(drainQueue);
-  }
-}; // v8 likes predictible objects
-
-
-function Item(fun, array) {
-  this.fun = fun;
-  this.array = array;
-}
-
-Item.prototype.run = function () {
-  this.fun.apply(null, this.array);
-};
-
-process.title = 'browser';
-process.env = {};
-process.argv = [];
-process.version = ''; // empty string to avoid regexp issues
-
-process.versions = {};
-
-function noop() {}
-
-process.on = noop;
-process.addListener = noop;
-process.once = noop;
-process.off = noop;
-process.removeListener = noop;
-process.removeAllListeners = noop;
-process.emit = noop;
-process.prependListener = noop;
-process.prependOnceListener = noop;
-
-process.listeners = function (name) {
-  return [];
-};
-
-process.binding = function (name) {
-  throw new Error('process.binding is not supported');
-};
-
-process.cwd = function () {
-  return '/';
-};
-
-process.chdir = function (dir) {
-  throw new Error('process.chdir is not supported');
-};
-
-process.umask = function () {
-  return 0;
-};
-},{}],"node_modules/q/q.js":[function(require,module,exports) {
-var define;
-var global = arguments[3];
-var process = require("process");
-// vim:ts=4:sts=4:sw=4:
-
-/*!
- *
- * Copyright 2009-2017 Kris Kowal under the terms of the MIT
- * license found at https://github.com/kriskowal/q/blob/v1/LICENSE
- *
- * With parts by Tyler Close
- * Copyright 2007-2009 Tyler Close under the terms of the MIT X license found
- * at http://www.opensource.org/licenses/mit-license.html
- * Forked at ref_send.js version: 2009-05-11
- *
- * With parts by Mark Miller
- * Copyright (C) 2011 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-(function (definition) {
-  "use strict"; // This file will function properly as a <script> tag, or a module
-  // using CommonJS and NodeJS or RequireJS module formats.  In
-  // Common/Node/RequireJS, the module exports the Q API and when
-  // executed as a simple <script>, it creates a Q global instead.
-  // Montage Require
-
-  if (typeof bootstrap === "function") {
-    bootstrap("promise", definition); // CommonJS
-  } else if (typeof exports === "object" && typeof module === "object") {
-    module.exports = definition(); // RequireJS
-  } else if (typeof define === "function" && define.amd) {
-    define(definition); // SES (Secure EcmaScript)
-  } else if (typeof ses !== "undefined") {
-    if (!ses.ok()) {
-      return;
-    } else {
-      ses.makeQ = definition;
-    } // <script>
-
-  } else if (typeof window !== "undefined" || typeof self !== "undefined") {
-    // Prefer window over self for add-on scripts. Use self for
-    // non-windowed contexts.
-    var global = typeof window !== "undefined" ? window : self; // Get the `window` object, save the previous Q global
-    // and initialize Q as a global.
-
-    var previousQ = global.Q;
-    global.Q = definition(); // Add a noConflict function so Q can be removed from the
-    // global namespace.
-
-    global.Q.noConflict = function () {
-      global.Q = previousQ;
-      return this;
-    };
-  } else {
-    throw new Error("This environment was not anticipated by Q. Please file a bug.");
-  }
-})(function () {
-  "use strict";
-
-  var hasStacks = false;
-
-  try {
-    throw new Error();
-  } catch (e) {
-    hasStacks = !!e.stack;
-  } // All code after this point will be filtered from stack traces reported
-  // by Q.
-
-
-  var qStartingLine = captureLine();
-  var qFileName; // shims
-  // used for fallback in "allResolved"
-
-  var noop = function () {}; // Use the fastest possible means to execute a task in a future turn
-  // of the event loop.
-
-
-  var nextTick = function () {
-    // linked list of tasks (single, with head node)
-    var head = {
-      task: void 0,
-      next: null
-    };
-    var tail = head;
-    var flushing = false;
-    var requestTick = void 0;
-    var isNodeJS = false; // queue for late tasks, used by unhandled rejection tracking
-
-    var laterQueue = [];
-
-    function flush() {
-      /* jshint loopfunc: true */
-      var task, domain;
-
-      while (head.next) {
-        head = head.next;
-        task = head.task;
-        head.task = void 0;
-        domain = head.domain;
-
-        if (domain) {
-          head.domain = void 0;
-          domain.enter();
-        }
-
-        runSingle(task, domain);
-      }
-
-      while (laterQueue.length) {
-        task = laterQueue.pop();
-        runSingle(task);
-      }
-
-      flushing = false;
-    } // runs a single function in the async queue
-
-
-    function runSingle(task, domain) {
-      try {
-        task();
-      } catch (e) {
-        if (isNodeJS) {
-          // In node, uncaught exceptions are considered fatal errors.
-          // Re-throw them synchronously to interrupt flushing!
-          // Ensure continuation if the uncaught exception is suppressed
-          // listening "uncaughtException" events (as domains does).
-          // Continue in next event to avoid tick recursion.
-          if (domain) {
-            domain.exit();
-          }
-
-          setTimeout(flush, 0);
-
-          if (domain) {
-            domain.enter();
-          }
-
-          throw e;
-        } else {
-          // In browsers, uncaught exceptions are not fatal.
-          // Re-throw them asynchronously to avoid slow-downs.
-          setTimeout(function () {
-            throw e;
-          }, 0);
-        }
-      }
-
-      if (domain) {
-        domain.exit();
-      }
-    }
-
-    nextTick = function (task) {
-      tail = tail.next = {
-        task: task,
-        domain: isNodeJS && process.domain,
-        next: null
-      };
-
-      if (!flushing) {
-        flushing = true;
-        requestTick();
-      }
-    };
-
-    if (typeof process === "object" && process.toString() === "[object process]" && process.nextTick) {
-      // Ensure Q is in a real Node environment, with a `process.nextTick`.
-      // To see through fake Node environments:
-      // * Mocha test runner - exposes a `process` global without a `nextTick`
-      // * Browserify - exposes a `process.nexTick` function that uses
-      //   `setTimeout`. In this case `setImmediate` is preferred because
-      //    it is faster. Browserify's `process.toString()` yields
-      //   "[object Object]", while in a real Node environment
-      //   `process.toString()` yields "[object process]".
-      isNodeJS = true;
-
-      requestTick = function () {
-        process.nextTick(flush);
-      };
-    } else if (typeof setImmediate === "function") {
-      // In IE10, Node.js 0.9+, or https://github.com/NobleJS/setImmediate
-      if (typeof window !== "undefined") {
-        requestTick = setImmediate.bind(window, flush);
-      } else {
-        requestTick = function () {
-          setImmediate(flush);
-        };
-      }
-    } else if (typeof MessageChannel !== "undefined") {
-      // modern browsers
-      // http://www.nonblocking.io/2011/06/windownexttick.html
-      var channel = new MessageChannel(); // At least Safari Version 6.0.5 (8536.30.1) intermittently cannot create
-      // working message ports the first time a page loads.
-
-      channel.port1.onmessage = function () {
-        requestTick = requestPortTick;
-        channel.port1.onmessage = flush;
-        flush();
-      };
-
-      var requestPortTick = function () {
-        // Opera requires us to provide a message payload, regardless of
-        // whether we use it.
-        channel.port2.postMessage(0);
-      };
-
-      requestTick = function () {
-        setTimeout(flush, 0);
-        requestPortTick();
-      };
-    } else {
-      // old browsers
-      requestTick = function () {
-        setTimeout(flush, 0);
-      };
-    } // runs a task after all other tasks have been run
-    // this is useful for unhandled rejection tracking that needs to happen
-    // after all `then`d tasks have been run.
-
-
-    nextTick.runAfter = function (task) {
-      laterQueue.push(task);
-
-      if (!flushing) {
-        flushing = true;
-        requestTick();
-      }
-    };
-
-    return nextTick;
-  }(); // Attempt to make generics safe in the face of downstream
-  // modifications.
-  // There is no situation where this is necessary.
-  // If you need a security guarantee, these primordials need to be
-  // deeply frozen anyway, and if you don’t need a security guarantee,
-  // this is just plain paranoid.
-  // However, this **might** have the nice side-effect of reducing the size of
-  // the minified code by reducing x.call() to merely x()
-  // See Mark Miller’s explanation of what this does.
-  // http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
-
-
-  var call = Function.call;
-
-  function uncurryThis(f) {
-    return function () {
-      return call.apply(f, arguments);
-    };
-  } // This is equivalent, but slower:
-  // uncurryThis = Function_bind.bind(Function_bind.call);
-  // http://jsperf.com/uncurrythis
-
-
-  var array_slice = uncurryThis(Array.prototype.slice);
-  var array_reduce = uncurryThis(Array.prototype.reduce || function (callback, basis) {
-    var index = 0,
-        length = this.length; // concerning the initial value, if one is not provided
-
-    if (arguments.length === 1) {
-      // seek to the first value in the array, accounting
-      // for the possibility that is is a sparse array
-      do {
-        if (index in this) {
-          basis = this[index++];
-          break;
-        }
-
-        if (++index >= length) {
-          throw new TypeError();
-        }
-      } while (1);
-    } // reduce
-
-
-    for (; index < length; index++) {
-      // account for the possibility that the array is sparse
-      if (index in this) {
-        basis = callback(basis, this[index], index);
-      }
-    }
-
-    return basis;
-  });
-  var array_indexOf = uncurryThis(Array.prototype.indexOf || function (value) {
-    // not a very good shim, but good enough for our one use of it
-    for (var i = 0; i < this.length; i++) {
-      if (this[i] === value) {
-        return i;
-      }
-    }
-
-    return -1;
-  });
-  var array_map = uncurryThis(Array.prototype.map || function (callback, thisp) {
-    var self = this;
-    var collect = [];
-    array_reduce(self, function (undefined, value, index) {
-      collect.push(callback.call(thisp, value, index, self));
-    }, void 0);
-    return collect;
-  });
-
-  var object_create = Object.create || function (prototype) {
-    function Type() {}
-
-    Type.prototype = prototype;
-    return new Type();
-  };
-
-  var object_defineProperty = Object.defineProperty || function (obj, prop, descriptor) {
-    obj[prop] = descriptor.value;
-    return obj;
-  };
-
-  var object_hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
-
-  var object_keys = Object.keys || function (object) {
-    var keys = [];
-
-    for (var key in object) {
-      if (object_hasOwnProperty(object, key)) {
-        keys.push(key);
-      }
-    }
-
-    return keys;
-  };
-
-  var object_toString = uncurryThis(Object.prototype.toString);
-
-  function isObject(value) {
-    return value === Object(value);
-  } // generator related shims
-  // FIXME: Remove this function once ES6 generators are in SpiderMonkey.
-
-
-  function isStopIteration(exception) {
-    return object_toString(exception) === "[object StopIteration]" || exception instanceof QReturnValue;
-  } // FIXME: Remove this helper and Q.return once ES6 generators are in
-  // SpiderMonkey.
-
-
-  var QReturnValue;
-
-  if (typeof ReturnValue !== "undefined") {
-    QReturnValue = ReturnValue;
-  } else {
-    QReturnValue = function (value) {
-      this.value = value;
-    };
-  } // long stack traces
-
-
-  var STACK_JUMP_SEPARATOR = "From previous event:";
-
-  function makeStackTraceLong(error, promise) {
-    // If possible, transform the error stack trace by removing Node and Q
-    // cruft, then concatenating with the stack trace of `promise`. See #57.
-    if (hasStacks && promise.stack && typeof error === "object" && error !== null && error.stack) {
-      var stacks = [];
-
-      for (var p = promise; !!p; p = p.source) {
-        if (p.stack && (!error.__minimumStackCounter__ || error.__minimumStackCounter__ > p.stackCounter)) {
-          object_defineProperty(error, "__minimumStackCounter__", {
-            value: p.stackCounter,
-            configurable: true
-          });
-          stacks.unshift(p.stack);
-        }
-      }
-
-      stacks.unshift(error.stack);
-      var concatedStacks = stacks.join("\n" + STACK_JUMP_SEPARATOR + "\n");
-      var stack = filterStackString(concatedStacks);
-      object_defineProperty(error, "stack", {
-        value: stack,
-        configurable: true
-      });
-    }
-  }
-
-  function filterStackString(stackString) {
-    var lines = stackString.split("\n");
-    var desiredLines = [];
-
-    for (var i = 0; i < lines.length; ++i) {
-      var line = lines[i];
-
-      if (!isInternalFrame(line) && !isNodeFrame(line) && line) {
-        desiredLines.push(line);
-      }
-    }
-
-    return desiredLines.join("\n");
-  }
-
-  function isNodeFrame(stackLine) {
-    return stackLine.indexOf("(module.js:") !== -1 || stackLine.indexOf("(node.js:") !== -1;
-  }
-
-  function getFileNameAndLineNumber(stackLine) {
-    // Named functions: "at functionName (filename:lineNumber:columnNumber)"
-    // In IE10 function name can have spaces ("Anonymous function") O_o
-    var attempt1 = /at .+ \((.+):(\d+):(?:\d+)\)$/.exec(stackLine);
-
-    if (attempt1) {
-      return [attempt1[1], Number(attempt1[2])];
-    } // Anonymous functions: "at filename:lineNumber:columnNumber"
-
-
-    var attempt2 = /at ([^ ]+):(\d+):(?:\d+)$/.exec(stackLine);
-
-    if (attempt2) {
-      return [attempt2[1], Number(attempt2[2])];
-    } // Firefox style: "function@filename:lineNumber or @filename:lineNumber"
-
-
-    var attempt3 = /.*@(.+):(\d+)$/.exec(stackLine);
-
-    if (attempt3) {
-      return [attempt3[1], Number(attempt3[2])];
-    }
-  }
-
-  function isInternalFrame(stackLine) {
-    var fileNameAndLineNumber = getFileNameAndLineNumber(stackLine);
-
-    if (!fileNameAndLineNumber) {
-      return false;
-    }
-
-    var fileName = fileNameAndLineNumber[0];
-    var lineNumber = fileNameAndLineNumber[1];
-    return fileName === qFileName && lineNumber >= qStartingLine && lineNumber <= qEndingLine;
-  } // discover own file name and line number range for filtering stack
-  // traces
-
-
-  function captureLine() {
-    if (!hasStacks) {
-      return;
-    }
-
-    try {
-      throw new Error();
-    } catch (e) {
-      var lines = e.stack.split("\n");
-      var firstLine = lines[0].indexOf("@") > 0 ? lines[1] : lines[2];
-      var fileNameAndLineNumber = getFileNameAndLineNumber(firstLine);
-
-      if (!fileNameAndLineNumber) {
-        return;
-      }
-
-      qFileName = fileNameAndLineNumber[0];
-      return fileNameAndLineNumber[1];
-    }
-  }
-
-  function deprecate(callback, name, alternative) {
-    return function () {
-      if (typeof console !== "undefined" && typeof console.warn === "function") {
-        console.warn(name + " is deprecated, use " + alternative + " instead.", new Error("").stack);
-      }
-
-      return callback.apply(callback, arguments);
-    };
-  } // end of shims
-  // beginning of real work
-
-  /**
-   * Constructs a promise for an immediate reference, passes promises through, or
-   * coerces promises from different systems.
-   * @param value immediate reference or promise
-   */
-
-
-  function Q(value) {
-    // If the object is already a Promise, return it directly.  This enables
-    // the resolve function to both be used to created references from objects,
-    // but to tolerably coerce non-promises to promises.
-    if (value instanceof Promise) {
-      return value;
-    } // assimilate thenables
-
-
-    if (isPromiseAlike(value)) {
-      return coerce(value);
-    } else {
-      return fulfill(value);
-    }
-  }
-
-  Q.resolve = Q;
-  /**
-   * Performs a task in a future turn of the event loop.
-   * @param {Function} task
-   */
-
-  Q.nextTick = nextTick;
-  /**
-   * Controls whether or not long stack traces will be on
-   */
-
-  Q.longStackSupport = false;
-  /**
-   * The counter is used to determine the stopping point for building
-   * long stack traces. In makeStackTraceLong we walk backwards through
-   * the linked list of promises, only stacks which were created before
-   * the rejection are concatenated.
-   */
-
-  var longStackCounter = 1; // enable long stacks if Q_DEBUG is set
-
-  if (typeof process === "object" && process && process.env && undefined) {
-    Q.longStackSupport = true;
-  }
-  /**
-   * Constructs a {promise, resolve, reject} object.
-   *
-   * `resolve` is a callback to invoke with a more resolved value for the
-   * promise. To fulfill the promise, invoke `resolve` with any value that is
-   * not a thenable. To reject the promise, invoke `resolve` with a rejected
-   * thenable, or invoke `reject` with the reason directly. To resolve the
-   * promise to another thenable, thus putting it in the same state, invoke
-   * `resolve` with that other thenable.
-   */
-
-
-  Q.defer = defer;
-
-  function defer() {
-    // if "messages" is an "Array", that indicates that the promise has not yet
-    // been resolved.  If it is "undefined", it has been resolved.  Each
-    // element of the messages array is itself an array of complete arguments to
-    // forward to the resolved promise.  We coerce the resolution value to a
-    // promise using the `resolve` function because it handles both fully
-    // non-thenable values and other thenables gracefully.
-    var messages = [],
-        progressListeners = [],
-        resolvedPromise;
-    var deferred = object_create(defer.prototype);
-    var promise = object_create(Promise.prototype);
-
-    promise.promiseDispatch = function (resolve, op, operands) {
-      var args = array_slice(arguments);
-
-      if (messages) {
-        messages.push(args);
-
-        if (op === "when" && operands[1]) {
-          // progress operand
-          progressListeners.push(operands[1]);
-        }
-      } else {
-        Q.nextTick(function () {
-          resolvedPromise.promiseDispatch.apply(resolvedPromise, args);
-        });
-      }
-    }; // XXX deprecated
-
-
-    promise.valueOf = function () {
-      if (messages) {
-        return promise;
-      }
-
-      var nearerValue = nearer(resolvedPromise);
-
-      if (isPromise(nearerValue)) {
-        resolvedPromise = nearerValue; // shorten chain
-      }
-
-      return nearerValue;
-    };
-
-    promise.inspect = function () {
-      if (!resolvedPromise) {
-        return {
-          state: "pending"
-        };
-      }
-
-      return resolvedPromise.inspect();
-    };
-
-    if (Q.longStackSupport && hasStacks) {
-      try {
-        throw new Error();
-      } catch (e) {
-        // NOTE: don't try to use `Error.captureStackTrace` or transfer the
-        // accessor around; that causes memory leaks as per GH-111. Just
-        // reify the stack trace as a string ASAP.
-        //
-        // At the same time, cut off the first line; it's always just
-        // "[object Promise]\n", as per the `toString`.
-        promise.stack = e.stack.substring(e.stack.indexOf("\n") + 1);
-        promise.stackCounter = longStackCounter++;
-      }
-    } // NOTE: we do the checks for `resolvedPromise` in each method, instead of
-    // consolidating them into `become`, since otherwise we'd create new
-    // promises with the lines `become(whatever(value))`. See e.g. GH-252.
-
-
-    function become(newPromise) {
-      resolvedPromise = newPromise;
-
-      if (Q.longStackSupport && hasStacks) {
-        // Only hold a reference to the new promise if long stacks
-        // are enabled to reduce memory usage
-        promise.source = newPromise;
-      }
-
-      array_reduce(messages, function (undefined, message) {
-        Q.nextTick(function () {
-          newPromise.promiseDispatch.apply(newPromise, message);
-        });
-      }, void 0);
-      messages = void 0;
-      progressListeners = void 0;
-    }
-
-    deferred.promise = promise;
-
-    deferred.resolve = function (value) {
-      if (resolvedPromise) {
-        return;
-      }
-
-      become(Q(value));
-    };
-
-    deferred.fulfill = function (value) {
-      if (resolvedPromise) {
-        return;
-      }
-
-      become(fulfill(value));
-    };
-
-    deferred.reject = function (reason) {
-      if (resolvedPromise) {
-        return;
-      }
-
-      become(reject(reason));
-    };
-
-    deferred.notify = function (progress) {
-      if (resolvedPromise) {
-        return;
-      }
-
-      array_reduce(progressListeners, function (undefined, progressListener) {
-        Q.nextTick(function () {
-          progressListener(progress);
-        });
-      }, void 0);
-    };
-
-    return deferred;
-  }
-  /**
-   * Creates a Node-style callback that will resolve or reject the deferred
-   * promise.
-   * @returns a nodeback
-   */
-
-
-  defer.prototype.makeNodeResolver = function () {
-    var self = this;
-    return function (error, value) {
-      if (error) {
-        self.reject(error);
-      } else if (arguments.length > 2) {
-        self.resolve(array_slice(arguments, 1));
-      } else {
-        self.resolve(value);
-      }
-    };
-  };
-  /**
-   * @param resolver {Function} a function that returns nothing and accepts
-   * the resolve, reject, and notify functions for a deferred.
-   * @returns a promise that may be resolved with the given resolve and reject
-   * functions, or rejected by a thrown exception in resolver
-   */
-
-
-  Q.Promise = promise; // ES6
-
-  Q.promise = promise;
-
-  function promise(resolver) {
-    if (typeof resolver !== "function") {
-      throw new TypeError("resolver must be a function.");
-    }
-
-    var deferred = defer();
-
-    try {
-      resolver(deferred.resolve, deferred.reject, deferred.notify);
-    } catch (reason) {
-      deferred.reject(reason);
-    }
-
-    return deferred.promise;
-  }
-
-  promise.race = race; // ES6
-
-  promise.all = all; // ES6
-
-  promise.reject = reject; // ES6
-
-  promise.resolve = Q; // ES6
-  // XXX experimental.  This method is a way to denote that a local value is
-  // serializable and should be immediately dispatched to a remote upon request,
-  // instead of passing a reference.
-
-  Q.passByCopy = function (object) {
-    //freeze(object);
-    //passByCopies.set(object, true);
-    return object;
-  };
-
-  Promise.prototype.passByCopy = function () {
-    //freeze(object);
-    //passByCopies.set(object, true);
-    return this;
-  };
-  /**
-   * If two promises eventually fulfill to the same value, promises that value,
-   * but otherwise rejects.
-   * @param x {Any*}
-   * @param y {Any*}
-   * @returns {Any*} a promise for x and y if they are the same, but a rejection
-   * otherwise.
-   *
-   */
-
-
-  Q.join = function (x, y) {
-    return Q(x).join(y);
-  };
-
-  Promise.prototype.join = function (that) {
-    return Q([this, that]).spread(function (x, y) {
-      if (x === y) {
-        // TODO: "===" should be Object.is or equiv
-        return x;
-      } else {
-        throw new Error("Q can't join: not the same: " + x + " " + y);
-      }
-    });
-  };
-  /**
-   * Returns a promise for the first of an array of promises to become settled.
-   * @param answers {Array[Any*]} promises to race
-   * @returns {Any*} the first promise to be settled
-   */
-
-
-  Q.race = race;
-
-  function race(answerPs) {
-    return promise(function (resolve, reject) {
-      // Switch to this once we can assume at least ES5
-      // answerPs.forEach(function (answerP) {
-      //     Q(answerP).then(resolve, reject);
-      // });
-      // Use this in the meantime
-      for (var i = 0, len = answerPs.length; i < len; i++) {
-        Q(answerPs[i]).then(resolve, reject);
-      }
-    });
-  }
-
-  Promise.prototype.race = function () {
-    return this.then(Q.race);
-  };
-  /**
-   * Constructs a Promise with a promise descriptor object and optional fallback
-   * function.  The descriptor contains methods like when(rejected), get(name),
-   * set(name, value), post(name, args), and delete(name), which all
-   * return either a value, a promise for a value, or a rejection.  The fallback
-   * accepts the operation name, a resolver, and any further arguments that would
-   * have been forwarded to the appropriate method above had a method been
-   * provided with the proper name.  The API makes no guarantees about the nature
-   * of the returned object, apart from that it is usable whereever promises are
-   * bought and sold.
-   */
-
-
-  Q.makePromise = Promise;
-
-  function Promise(descriptor, fallback, inspect) {
-    if (fallback === void 0) {
-      fallback = function (op) {
-        return reject(new Error("Promise does not support operation: " + op));
-      };
-    }
-
-    if (inspect === void 0) {
-      inspect = function () {
-        return {
-          state: "unknown"
-        };
-      };
-    }
-
-    var promise = object_create(Promise.prototype);
-
-    promise.promiseDispatch = function (resolve, op, args) {
-      var result;
-
-      try {
-        if (descriptor[op]) {
-          result = descriptor[op].apply(promise, args);
-        } else {
-          result = fallback.call(promise, op, args);
-        }
-      } catch (exception) {
-        result = reject(exception);
-      }
-
-      if (resolve) {
-        resolve(result);
-      }
-    };
-
-    promise.inspect = inspect; // XXX deprecated `valueOf` and `exception` support
-
-    if (inspect) {
-      var inspected = inspect();
-
-      if (inspected.state === "rejected") {
-        promise.exception = inspected.reason;
-      }
-
-      promise.valueOf = function () {
-        var inspected = inspect();
-
-        if (inspected.state === "pending" || inspected.state === "rejected") {
-          return promise;
-        }
-
-        return inspected.value;
-      };
-    }
-
-    return promise;
-  }
-
-  Promise.prototype.toString = function () {
-    return "[object Promise]";
-  };
-
-  Promise.prototype.then = function (fulfilled, rejected, progressed) {
-    var self = this;
-    var deferred = defer();
-    var done = false; // ensure the untrusted promise makes at most a
-    // single call to one of the callbacks
-
-    function _fulfilled(value) {
-      try {
-        return typeof fulfilled === "function" ? fulfilled(value) : value;
-      } catch (exception) {
-        return reject(exception);
-      }
-    }
-
-    function _rejected(exception) {
-      if (typeof rejected === "function") {
-        makeStackTraceLong(exception, self);
-
-        try {
-          return rejected(exception);
-        } catch (newException) {
-          return reject(newException);
-        }
-      }
-
-      return reject(exception);
-    }
-
-    function _progressed(value) {
-      return typeof progressed === "function" ? progressed(value) : value;
-    }
-
-    Q.nextTick(function () {
-      self.promiseDispatch(function (value) {
-        if (done) {
-          return;
-        }
-
-        done = true;
-        deferred.resolve(_fulfilled(value));
-      }, "when", [function (exception) {
-        if (done) {
-          return;
-        }
-
-        done = true;
-        deferred.resolve(_rejected(exception));
-      }]);
-    }); // Progress propagator need to be attached in the current tick.
-
-    self.promiseDispatch(void 0, "when", [void 0, function (value) {
-      var newValue;
-      var threw = false;
-
-      try {
-        newValue = _progressed(value);
-      } catch (e) {
-        threw = true;
-
-        if (Q.onerror) {
-          Q.onerror(e);
-        } else {
-          throw e;
-        }
-      }
-
-      if (!threw) {
-        deferred.notify(newValue);
-      }
-    }]);
-    return deferred.promise;
-  };
-
-  Q.tap = function (promise, callback) {
-    return Q(promise).tap(callback);
-  };
-  /**
-   * Works almost like "finally", but not called for rejections.
-   * Original resolution value is passed through callback unaffected.
-   * Callback may return a promise that will be awaited for.
-   * @param {Function} callback
-   * @returns {Q.Promise}
-   * @example
-   * doSomething()
-   *   .then(...)
-   *   .tap(console.log)
-   *   .then(...);
-   */
-
-
-  Promise.prototype.tap = function (callback) {
-    callback = Q(callback);
-    return this.then(function (value) {
-      return callback.fcall(value).thenResolve(value);
-    });
-  };
-  /**
-   * Registers an observer on a promise.
-   *
-   * Guarantees:
-   *
-   * 1. that fulfilled and rejected will be called only once.
-   * 2. that either the fulfilled callback or the rejected callback will be
-   *    called, but not both.
-   * 3. that fulfilled and rejected will not be called in this turn.
-   *
-   * @param value      promise or immediate reference to observe
-   * @param fulfilled  function to be called with the fulfilled value
-   * @param rejected   function to be called with the rejection exception
-   * @param progressed function to be called on any progress notifications
-   * @return promise for the return value from the invoked callback
-   */
-
-
-  Q.when = when;
-
-  function when(value, fulfilled, rejected, progressed) {
-    return Q(value).then(fulfilled, rejected, progressed);
-  }
-
-  Promise.prototype.thenResolve = function (value) {
-    return this.then(function () {
-      return value;
-    });
-  };
-
-  Q.thenResolve = function (promise, value) {
-    return Q(promise).thenResolve(value);
-  };
-
-  Promise.prototype.thenReject = function (reason) {
-    return this.then(function () {
-      throw reason;
-    });
-  };
-
-  Q.thenReject = function (promise, reason) {
-    return Q(promise).thenReject(reason);
-  };
-  /**
-   * If an object is not a promise, it is as "near" as possible.
-   * If a promise is rejected, it is as "near" as possible too.
-   * If it’s a fulfilled promise, the fulfillment value is nearer.
-   * If it’s a deferred promise and the deferred has been resolved, the
-   * resolution is "nearer".
-   * @param object
-   * @returns most resolved (nearest) form of the object
-   */
-  // XXX should we re-do this?
-
-
-  Q.nearer = nearer;
-
-  function nearer(value) {
-    if (isPromise(value)) {
-      var inspected = value.inspect();
-
-      if (inspected.state === "fulfilled") {
-        return inspected.value;
-      }
-    }
-
-    return value;
-  }
-  /**
-   * @returns whether the given object is a promise.
-   * Otherwise it is a fulfilled value.
-   */
-
-
-  Q.isPromise = isPromise;
-
-  function isPromise(object) {
-    return object instanceof Promise;
-  }
-
-  Q.isPromiseAlike = isPromiseAlike;
-
-  function isPromiseAlike(object) {
-    return isObject(object) && typeof object.then === "function";
-  }
-  /**
-   * @returns whether the given object is a pending promise, meaning not
-   * fulfilled or rejected.
-   */
-
-
-  Q.isPending = isPending;
-
-  function isPending(object) {
-    return isPromise(object) && object.inspect().state === "pending";
-  }
-
-  Promise.prototype.isPending = function () {
-    return this.inspect().state === "pending";
-  };
-  /**
-   * @returns whether the given object is a value or fulfilled
-   * promise.
-   */
-
-
-  Q.isFulfilled = isFulfilled;
-
-  function isFulfilled(object) {
-    return !isPromise(object) || object.inspect().state === "fulfilled";
-  }
-
-  Promise.prototype.isFulfilled = function () {
-    return this.inspect().state === "fulfilled";
-  };
-  /**
-   * @returns whether the given object is a rejected promise.
-   */
-
-
-  Q.isRejected = isRejected;
-
-  function isRejected(object) {
-    return isPromise(object) && object.inspect().state === "rejected";
-  }
-
-  Promise.prototype.isRejected = function () {
-    return this.inspect().state === "rejected";
-  }; //// BEGIN UNHANDLED REJECTION TRACKING
-  // This promise library consumes exceptions thrown in handlers so they can be
-  // handled by a subsequent promise.  The exceptions get added to this array when
-  // they are created, and removed when they are handled.  Note that in ES6 or
-  // shimmed environments, this would naturally be a `Set`.
-
-
-  var unhandledReasons = [];
-  var unhandledRejections = [];
-  var reportedUnhandledRejections = [];
-  var trackUnhandledRejections = true;
-
-  function resetUnhandledRejections() {
-    unhandledReasons.length = 0;
-    unhandledRejections.length = 0;
-
-    if (!trackUnhandledRejections) {
-      trackUnhandledRejections = true;
-    }
-  }
-
-  function trackRejection(promise, reason) {
-    if (!trackUnhandledRejections) {
-      return;
-    }
-
-    if (typeof process === "object" && typeof process.emit === "function") {
-      Q.nextTick.runAfter(function () {
-        if (array_indexOf(unhandledRejections, promise) !== -1) {
-          process.emit("unhandledRejection", reason, promise);
-          reportedUnhandledRejections.push(promise);
-        }
-      });
-    }
-
-    unhandledRejections.push(promise);
-
-    if (reason && typeof reason.stack !== "undefined") {
-      unhandledReasons.push(reason.stack);
-    } else {
-      unhandledReasons.push("(no stack) " + reason);
-    }
-  }
-
-  function untrackRejection(promise) {
-    if (!trackUnhandledRejections) {
-      return;
-    }
-
-    var at = array_indexOf(unhandledRejections, promise);
-
-    if (at !== -1) {
-      if (typeof process === "object" && typeof process.emit === "function") {
-        Q.nextTick.runAfter(function () {
-          var atReport = array_indexOf(reportedUnhandledRejections, promise);
-
-          if (atReport !== -1) {
-            process.emit("rejectionHandled", unhandledReasons[at], promise);
-            reportedUnhandledRejections.splice(atReport, 1);
-          }
-        });
-      }
-
-      unhandledRejections.splice(at, 1);
-      unhandledReasons.splice(at, 1);
-    }
-  }
-
-  Q.resetUnhandledRejections = resetUnhandledRejections;
-
-  Q.getUnhandledReasons = function () {
-    // Make a copy so that consumers can't interfere with our internal state.
-    return unhandledReasons.slice();
-  };
-
-  Q.stopUnhandledRejectionTracking = function () {
-    resetUnhandledRejections();
-    trackUnhandledRejections = false;
-  };
-
-  resetUnhandledRejections(); //// END UNHANDLED REJECTION TRACKING
-
-  /**
-   * Constructs a rejected promise.
-   * @param reason value describing the failure
-   */
-
-  Q.reject = reject;
-
-  function reject(reason) {
-    var rejection = Promise({
-      "when": function (rejected) {
-        // note that the error has been handled
-        if (rejected) {
-          untrackRejection(this);
-        }
-
-        return rejected ? rejected(reason) : this;
-      }
-    }, function fallback() {
-      return this;
-    }, function inspect() {
-      return {
-        state: "rejected",
-        reason: reason
-      };
-    }); // Note that the reason has not been handled.
-
-    trackRejection(rejection, reason);
-    return rejection;
-  }
-  /**
-   * Constructs a fulfilled promise for an immediate reference.
-   * @param value immediate reference
-   */
-
-
-  Q.fulfill = fulfill;
-
-  function fulfill(value) {
-    return Promise({
-      "when": function () {
-        return value;
-      },
-      "get": function (name) {
-        return value[name];
-      },
-      "set": function (name, rhs) {
-        value[name] = rhs;
-      },
-      "delete": function (name) {
-        delete value[name];
-      },
-      "post": function (name, args) {
-        // Mark Miller proposes that post with no name should apply a
-        // promised function.
-        if (name === null || name === void 0) {
-          return value.apply(void 0, args);
-        } else {
-          return value[name].apply(value, args);
-        }
-      },
-      "apply": function (thisp, args) {
-        return value.apply(thisp, args);
-      },
-      "keys": function () {
-        return object_keys(value);
-      }
-    }, void 0, function inspect() {
-      return {
-        state: "fulfilled",
-        value: value
-      };
-    });
-  }
-  /**
-   * Converts thenables to Q promises.
-   * @param promise thenable promise
-   * @returns a Q promise
-   */
-
-
-  function coerce(promise) {
-    var deferred = defer();
-    Q.nextTick(function () {
-      try {
-        promise.then(deferred.resolve, deferred.reject, deferred.notify);
-      } catch (exception) {
-        deferred.reject(exception);
-      }
-    });
-    return deferred.promise;
-  }
-  /**
-   * Annotates an object such that it will never be
-   * transferred away from this process over any promise
-   * communication channel.
-   * @param object
-   * @returns promise a wrapping of that object that
-   * additionally responds to the "isDef" message
-   * without a rejection.
-   */
-
-
-  Q.master = master;
-
-  function master(object) {
-    return Promise({
-      "isDef": function () {}
-    }, function fallback(op, args) {
-      return dispatch(object, op, args);
-    }, function () {
-      return Q(object).inspect();
-    });
-  }
-  /**
-   * Spreads the values of a promised array of arguments into the
-   * fulfillment callback.
-   * @param fulfilled callback that receives variadic arguments from the
-   * promised array
-   * @param rejected callback that receives the exception if the promise
-   * is rejected.
-   * @returns a promise for the return value or thrown exception of
-   * either callback.
-   */
-
-
-  Q.spread = spread;
-
-  function spread(value, fulfilled, rejected) {
-    return Q(value).spread(fulfilled, rejected);
-  }
-
-  Promise.prototype.spread = function (fulfilled, rejected) {
-    return this.all().then(function (array) {
-      return fulfilled.apply(void 0, array);
-    }, rejected);
-  };
-  /**
-   * The async function is a decorator for generator functions, turning
-   * them into asynchronous generators.  Although generators are only part
-   * of the newest ECMAScript 6 drafts, this code does not cause syntax
-   * errors in older engines.  This code should continue to work and will
-   * in fact improve over time as the language improves.
-   *
-   * ES6 generators are currently part of V8 version 3.19 with the
-   * --harmony-generators runtime flag enabled.  SpiderMonkey has had them
-   * for longer, but under an older Python-inspired form.  This function
-   * works on both kinds of generators.
-   *
-   * Decorates a generator function such that:
-   *  - it may yield promises
-   *  - execution will continue when that promise is fulfilled
-   *  - the value of the yield expression will be the fulfilled value
-   *  - it returns a promise for the return value (when the generator
-   *    stops iterating)
-   *  - the decorated function returns a promise for the return value
-   *    of the generator or the first rejected promise among those
-   *    yielded.
-   *  - if an error is thrown in the generator, it propagates through
-   *    every following yield until it is caught, or until it escapes
-   *    the generator function altogether, and is translated into a
-   *    rejection for the promise returned by the decorated generator.
-   */
-
-
-  Q.async = async;
-
-  function async(makeGenerator) {
-    return function () {
-      // when verb is "send", arg is a value
-      // when verb is "throw", arg is an exception
-      function continuer(verb, arg) {
-        var result; // Until V8 3.19 / Chromium 29 is released, SpiderMonkey is the only
-        // engine that has a deployed base of browsers that support generators.
-        // However, SM's generators use the Python-inspired semantics of
-        // outdated ES6 drafts.  We would like to support ES6, but we'd also
-        // like to make it possible to use generators in deployed browsers, so
-        // we also support Python-style generators.  At some point we can remove
-        // this block.
-
-        if (typeof StopIteration === "undefined") {
-          // ES6 Generators
-          try {
-            result = generator[verb](arg);
-          } catch (exception) {
-            return reject(exception);
-          }
-
-          if (result.done) {
-            return Q(result.value);
-          } else {
-            return when(result.value, callback, errback);
-          }
-        } else {
-          // SpiderMonkey Generators
-          // FIXME: Remove this case when SM does ES6 generators.
-          try {
-            result = generator[verb](arg);
-          } catch (exception) {
-            if (isStopIteration(exception)) {
-              return Q(exception.value);
-            } else {
-              return reject(exception);
-            }
-          }
-
-          return when(result, callback, errback);
-        }
-      }
-
-      var generator = makeGenerator.apply(this, arguments);
-      var callback = continuer.bind(continuer, "next");
-      var errback = continuer.bind(continuer, "throw");
-      return callback();
-    };
-  }
-  /**
-   * The spawn function is a small wrapper around async that immediately
-   * calls the generator and also ends the promise chain, so that any
-   * unhandled errors are thrown instead of forwarded to the error
-   * handler. This is useful because it's extremely common to run
-   * generators at the top-level to work with libraries.
-   */
-
-
-  Q.spawn = spawn;
-
-  function spawn(makeGenerator) {
-    Q.done(Q.async(makeGenerator)());
-  } // FIXME: Remove this interface once ES6 generators are in SpiderMonkey.
-
-  /**
-   * Throws a ReturnValue exception to stop an asynchronous generator.
-   *
-   * This interface is a stop-gap measure to support generator return
-   * values in older Firefox/SpiderMonkey.  In browsers that support ES6
-   * generators like Chromium 29, just use "return" in your generator
-   * functions.
-   *
-   * @param value the return value for the surrounding generator
-   * @throws ReturnValue exception with the value.
-   * @example
-   * // ES6 style
-   * Q.async(function* () {
-   *      var foo = yield getFooPromise();
-   *      var bar = yield getBarPromise();
-   *      return foo + bar;
-   * })
-   * // Older SpiderMonkey style
-   * Q.async(function () {
-   *      var foo = yield getFooPromise();
-   *      var bar = yield getBarPromise();
-   *      Q.return(foo + bar);
-   * })
-   */
-
-
-  Q["return"] = _return;
-
-  function _return(value) {
-    throw new QReturnValue(value);
-  }
-  /**
-   * The promised function decorator ensures that any promise arguments
-   * are settled and passed as values (`this` is also settled and passed
-   * as a value).  It will also ensure that the result of a function is
-   * always a promise.
-   *
-   * @example
-   * var add = Q.promised(function (a, b) {
-   *     return a + b;
-   * });
-   * add(Q(a), Q(B));
-   *
-   * @param {function} callback The function to decorate
-   * @returns {function} a function that has been decorated.
-   */
-
-
-  Q.promised = promised;
-
-  function promised(callback) {
-    return function () {
-      return spread([this, all(arguments)], function (self, args) {
-        return callback.apply(self, args);
-      });
-    };
-  }
-  /**
-   * sends a message to a value in a future turn
-   * @param object* the recipient
-   * @param op the name of the message operation, e.g., "when",
-   * @param args further arguments to be forwarded to the operation
-   * @returns result {Promise} a promise for the result of the operation
-   */
-
-
-  Q.dispatch = dispatch;
-
-  function dispatch(object, op, args) {
-    return Q(object).dispatch(op, args);
-  }
-
-  Promise.prototype.dispatch = function (op, args) {
-    var self = this;
-    var deferred = defer();
-    Q.nextTick(function () {
-      self.promiseDispatch(deferred.resolve, op, args);
-    });
-    return deferred.promise;
-  };
-  /**
-   * Gets the value of a property in a future turn.
-   * @param object    promise or immediate reference for target object
-   * @param name      name of property to get
-   * @return promise for the property value
-   */
-
-
-  Q.get = function (object, key) {
-    return Q(object).dispatch("get", [key]);
-  };
-
-  Promise.prototype.get = function (key) {
-    return this.dispatch("get", [key]);
-  };
-  /**
-   * Sets the value of a property in a future turn.
-   * @param object    promise or immediate reference for object object
-   * @param name      name of property to set
-   * @param value     new value of property
-   * @return promise for the return value
-   */
-
-
-  Q.set = function (object, key, value) {
-    return Q(object).dispatch("set", [key, value]);
-  };
-
-  Promise.prototype.set = function (key, value) {
-    return this.dispatch("set", [key, value]);
-  };
-  /**
-   * Deletes a property in a future turn.
-   * @param object    promise or immediate reference for target object
-   * @param name      name of property to delete
-   * @return promise for the return value
-   */
-
-
-  Q.del = // XXX legacy
-  Q["delete"] = function (object, key) {
-    return Q(object).dispatch("delete", [key]);
-  };
-
-  Promise.prototype.del = // XXX legacy
-  Promise.prototype["delete"] = function (key) {
-    return this.dispatch("delete", [key]);
-  };
-  /**
-   * Invokes a method in a future turn.
-   * @param object    promise or immediate reference for target object
-   * @param name      name of method to invoke
-   * @param value     a value to post, typically an array of
-   *                  invocation arguments for promises that
-   *                  are ultimately backed with `resolve` values,
-   *                  as opposed to those backed with URLs
-   *                  wherein the posted value can be any
-   *                  JSON serializable object.
-   * @return promise for the return value
-   */
-  // bound locally because it is used by other methods
-
-
-  Q.mapply = // XXX As proposed by "Redsandro"
-  Q.post = function (object, name, args) {
-    return Q(object).dispatch("post", [name, args]);
-  };
-
-  Promise.prototype.mapply = // XXX As proposed by "Redsandro"
-  Promise.prototype.post = function (name, args) {
-    return this.dispatch("post", [name, args]);
-  };
-  /**
-   * Invokes a method in a future turn.
-   * @param object    promise or immediate reference for target object
-   * @param name      name of method to invoke
-   * @param ...args   array of invocation arguments
-   * @return promise for the return value
-   */
-
-
-  Q.send = // XXX Mark Miller's proposed parlance
-  Q.mcall = // XXX As proposed by "Redsandro"
-  Q.invoke = function (object, name
-  /*...args*/
-  ) {
-    return Q(object).dispatch("post", [name, array_slice(arguments, 2)]);
-  };
-
-  Promise.prototype.send = // XXX Mark Miller's proposed parlance
-  Promise.prototype.mcall = // XXX As proposed by "Redsandro"
-  Promise.prototype.invoke = function (name
-  /*...args*/
-  ) {
-    return this.dispatch("post", [name, array_slice(arguments, 1)]);
-  };
-  /**
-   * Applies the promised function in a future turn.
-   * @param object    promise or immediate reference for target function
-   * @param args      array of application arguments
-   */
-
-
-  Q.fapply = function (object, args) {
-    return Q(object).dispatch("apply", [void 0, args]);
-  };
-
-  Promise.prototype.fapply = function (args) {
-    return this.dispatch("apply", [void 0, args]);
-  };
-  /**
-   * Calls the promised function in a future turn.
-   * @param object    promise or immediate reference for target function
-   * @param ...args   array of application arguments
-   */
-
-
-  Q["try"] = Q.fcall = function (object
-  /* ...args*/
-  ) {
-    return Q(object).dispatch("apply", [void 0, array_slice(arguments, 1)]);
-  };
-
-  Promise.prototype.fcall = function ()
-  /*...args*/
-  {
-    return this.dispatch("apply", [void 0, array_slice(arguments)]);
-  };
-  /**
-   * Binds the promised function, transforming return values into a fulfilled
-   * promise and thrown errors into a rejected one.
-   * @param object    promise or immediate reference for target function
-   * @param ...args   array of application arguments
-   */
-
-
-  Q.fbind = function (object
-  /*...args*/
-  ) {
-    var promise = Q(object);
-    var args = array_slice(arguments, 1);
-    return function fbound() {
-      return promise.dispatch("apply", [this, args.concat(array_slice(arguments))]);
-    };
-  };
-
-  Promise.prototype.fbind = function ()
-  /*...args*/
-  {
-    var promise = this;
-    var args = array_slice(arguments);
-    return function fbound() {
-      return promise.dispatch("apply", [this, args.concat(array_slice(arguments))]);
-    };
-  };
-  /**
-   * Requests the names of the owned properties of a promised
-   * object in a future turn.
-   * @param object    promise or immediate reference for target object
-   * @return promise for the keys of the eventually settled object
-   */
-
-
-  Q.keys = function (object) {
-    return Q(object).dispatch("keys", []);
-  };
-
-  Promise.prototype.keys = function () {
-    return this.dispatch("keys", []);
-  };
-  /**
-   * Turns an array of promises into a promise for an array.  If any of
-   * the promises gets rejected, the whole array is rejected immediately.
-   * @param {Array*} an array (or promise for an array) of values (or
-   * promises for values)
-   * @returns a promise for an array of the corresponding values
-   */
-  // By Mark Miller
-  // http://wiki.ecmascript.org/doku.php?id=strawman:concurrency&rev=1308776521#allfulfilled
-
-
-  Q.all = all;
-
-  function all(promises) {
-    return when(promises, function (promises) {
-      var pendingCount = 0;
-      var deferred = defer();
-      array_reduce(promises, function (undefined, promise, index) {
-        var snapshot;
-
-        if (isPromise(promise) && (snapshot = promise.inspect()).state === "fulfilled") {
-          promises[index] = snapshot.value;
-        } else {
-          ++pendingCount;
-          when(promise, function (value) {
-            promises[index] = value;
-
-            if (--pendingCount === 0) {
-              deferred.resolve(promises);
-            }
-          }, deferred.reject, function (progress) {
-            deferred.notify({
-              index: index,
-              value: progress
-            });
-          });
-        }
-      }, void 0);
-
-      if (pendingCount === 0) {
-        deferred.resolve(promises);
-      }
-
-      return deferred.promise;
-    });
-  }
-
-  Promise.prototype.all = function () {
-    return all(this);
-  };
-  /**
-   * Returns the first resolved promise of an array. Prior rejected promises are
-   * ignored.  Rejects only if all promises are rejected.
-   * @param {Array*} an array containing values or promises for values
-   * @returns a promise fulfilled with the value of the first resolved promise,
-   * or a rejected promise if all promises are rejected.
-   */
-
-
-  Q.any = any;
-
-  function any(promises) {
-    if (promises.length === 0) {
-      return Q.resolve();
-    }
-
-    var deferred = Q.defer();
-    var pendingCount = 0;
-    array_reduce(promises, function (prev, current, index) {
-      var promise = promises[index];
-      pendingCount++;
-      when(promise, onFulfilled, onRejected, onProgress);
-
-      function onFulfilled(result) {
-        deferred.resolve(result);
-      }
-
-      function onRejected(err) {
-        pendingCount--;
-
-        if (pendingCount === 0) {
-          var rejection = err || new Error("" + err);
-          rejection.message = "Q can't get fulfillment value from any promise, all " + "promises were rejected. Last error message: " + rejection.message;
-          deferred.reject(rejection);
-        }
-      }
-
-      function onProgress(progress) {
-        deferred.notify({
-          index: index,
-          value: progress
-        });
-      }
-    }, undefined);
-    return deferred.promise;
-  }
-
-  Promise.prototype.any = function () {
-    return any(this);
-  };
-  /**
-   * Waits for all promises to be settled, either fulfilled or
-   * rejected.  This is distinct from `all` since that would stop
-   * waiting at the first rejection.  The promise returned by
-   * `allResolved` will never be rejected.
-   * @param promises a promise for an array (or an array) of promises
-   * (or values)
-   * @return a promise for an array of promises
-   */
-
-
-  Q.allResolved = deprecate(allResolved, "allResolved", "allSettled");
-
-  function allResolved(promises) {
-    return when(promises, function (promises) {
-      promises = array_map(promises, Q);
-      return when(all(array_map(promises, function (promise) {
-        return when(promise, noop, noop);
-      })), function () {
-        return promises;
-      });
-    });
-  }
-
-  Promise.prototype.allResolved = function () {
-    return allResolved(this);
-  };
-  /**
-   * @see Promise#allSettled
-   */
-
-
-  Q.allSettled = allSettled;
-
-  function allSettled(promises) {
-    return Q(promises).allSettled();
-  }
-  /**
-   * Turns an array of promises into a promise for an array of their states (as
-   * returned by `inspect`) when they have all settled.
-   * @param {Array[Any*]} values an array (or promise for an array) of values (or
-   * promises for values)
-   * @returns {Array[State]} an array of states for the respective values.
-   */
-
-
-  Promise.prototype.allSettled = function () {
-    return this.then(function (promises) {
-      return all(array_map(promises, function (promise) {
-        promise = Q(promise);
-
-        function regardless() {
-          return promise.inspect();
-        }
-
-        return promise.then(regardless, regardless);
-      }));
-    });
-  };
-  /**
-   * Captures the failure of a promise, giving an oportunity to recover
-   * with a callback.  If the given promise is fulfilled, the returned
-   * promise is fulfilled.
-   * @param {Any*} promise for something
-   * @param {Function} callback to fulfill the returned promise if the
-   * given promise is rejected
-   * @returns a promise for the return value of the callback
-   */
-
-
-  Q.fail = // XXX legacy
-  Q["catch"] = function (object, rejected) {
-    return Q(object).then(void 0, rejected);
-  };
-
-  Promise.prototype.fail = // XXX legacy
-  Promise.prototype["catch"] = function (rejected) {
-    return this.then(void 0, rejected);
-  };
-  /**
-   * Attaches a listener that can respond to progress notifications from a
-   * promise's originating deferred. This listener receives the exact arguments
-   * passed to ``deferred.notify``.
-   * @param {Any*} promise for something
-   * @param {Function} callback to receive any progress notifications
-   * @returns the given promise, unchanged
-   */
-
-
-  Q.progress = progress;
-
-  function progress(object, progressed) {
-    return Q(object).then(void 0, void 0, progressed);
-  }
-
-  Promise.prototype.progress = function (progressed) {
-    return this.then(void 0, void 0, progressed);
-  };
-  /**
-   * Provides an opportunity to observe the settling of a promise,
-   * regardless of whether the promise is fulfilled or rejected.  Forwards
-   * the resolution to the returned promise when the callback is done.
-   * The callback can return a promise to defer completion.
-   * @param {Any*} promise
-   * @param {Function} callback to observe the resolution of the given
-   * promise, takes no arguments.
-   * @returns a promise for the resolution of the given promise when
-   * ``fin`` is done.
-   */
-
-
-  Q.fin = // XXX legacy
-  Q["finally"] = function (object, callback) {
-    return Q(object)["finally"](callback);
-  };
-
-  Promise.prototype.fin = // XXX legacy
-  Promise.prototype["finally"] = function (callback) {
-    if (!callback || typeof callback.apply !== "function") {
-      throw new Error("Q can't apply finally callback");
-    }
-
-    callback = Q(callback);
-    return this.then(function (value) {
-      return callback.fcall().then(function () {
-        return value;
-      });
-    }, function (reason) {
-      // TODO attempt to recycle the rejection with "this".
-      return callback.fcall().then(function () {
-        throw reason;
-      });
-    });
-  };
-  /**
-   * Terminates a chain of promises, forcing rejections to be
-   * thrown as exceptions.
-   * @param {Any*} promise at the end of a chain of promises
-   * @returns nothing
-   */
-
-
-  Q.done = function (object, fulfilled, rejected, progress) {
-    return Q(object).done(fulfilled, rejected, progress);
-  };
-
-  Promise.prototype.done = function (fulfilled, rejected, progress) {
-    var onUnhandledError = function (error) {
-      // forward to a future turn so that ``when``
-      // does not catch it and turn it into a rejection.
-      Q.nextTick(function () {
-        makeStackTraceLong(error, promise);
-
-        if (Q.onerror) {
-          Q.onerror(error);
-        } else {
-          throw error;
-        }
-      });
-    }; // Avoid unnecessary `nextTick`ing via an unnecessary `when`.
-
-
-    var promise = fulfilled || rejected || progress ? this.then(fulfilled, rejected, progress) : this;
-
-    if (typeof process === "object" && process && process.domain) {
-      onUnhandledError = process.domain.bind(onUnhandledError);
-    }
-
-    promise.then(void 0, onUnhandledError);
-  };
-  /**
-   * Causes a promise to be rejected if it does not get fulfilled before
-   * some milliseconds time out.
-   * @param {Any*} promise
-   * @param {Number} milliseconds timeout
-   * @param {Any*} custom error message or Error object (optional)
-   * @returns a promise for the resolution of the given promise if it is
-   * fulfilled before the timeout, otherwise rejected.
-   */
-
-
-  Q.timeout = function (object, ms, error) {
-    return Q(object).timeout(ms, error);
-  };
-
-  Promise.prototype.timeout = function (ms, error) {
-    var deferred = defer();
-    var timeoutId = setTimeout(function () {
-      if (!error || "string" === typeof error) {
-        error = new Error(error || "Timed out after " + ms + " ms");
-        error.code = "ETIMEDOUT";
-      }
-
-      deferred.reject(error);
-    }, ms);
-    this.then(function (value) {
-      clearTimeout(timeoutId);
-      deferred.resolve(value);
-    }, function (exception) {
-      clearTimeout(timeoutId);
-      deferred.reject(exception);
-    }, deferred.notify);
-    return deferred.promise;
-  };
-  /**
-   * Returns a promise for the given value (or promised value), some
-   * milliseconds after it resolved. Passes rejections immediately.
-   * @param {Any*} promise
-   * @param {Number} milliseconds
-   * @returns a promise for the resolution of the given promise after milliseconds
-   * time has elapsed since the resolution of the given promise.
-   * If the given promise rejects, that is passed immediately.
-   */
-
-
-  Q.delay = function (object, timeout) {
-    if (timeout === void 0) {
-      timeout = object;
-      object = void 0;
-    }
-
-    return Q(object).delay(timeout);
-  };
-
-  Promise.prototype.delay = function (timeout) {
-    return this.then(function (value) {
-      var deferred = defer();
-      setTimeout(function () {
-        deferred.resolve(value);
-      }, timeout);
-      return deferred.promise;
-    });
-  };
-  /**
-   * Passes a continuation to a Node function, which is called with the given
-   * arguments provided as an array, and returns a promise.
-   *
-   *      Q.nfapply(FS.readFile, [__filename])
-   *      .then(function (content) {
-   *      })
-   *
-   */
-
-
-  Q.nfapply = function (callback, args) {
-    return Q(callback).nfapply(args);
-  };
-
-  Promise.prototype.nfapply = function (args) {
-    var deferred = defer();
-    var nodeArgs = array_slice(args);
-    nodeArgs.push(deferred.makeNodeResolver());
-    this.fapply(nodeArgs).fail(deferred.reject);
-    return deferred.promise;
-  };
-  /**
-   * Passes a continuation to a Node function, which is called with the given
-   * arguments provided individually, and returns a promise.
-   * @example
-   * Q.nfcall(FS.readFile, __filename)
-   * .then(function (content) {
-   * })
-   *
-   */
-
-
-  Q.nfcall = function (callback
-  /*...args*/
-  ) {
-    var args = array_slice(arguments, 1);
-    return Q(callback).nfapply(args);
-  };
-
-  Promise.prototype.nfcall = function ()
-  /*...args*/
-  {
-    var nodeArgs = array_slice(arguments);
-    var deferred = defer();
-    nodeArgs.push(deferred.makeNodeResolver());
-    this.fapply(nodeArgs).fail(deferred.reject);
-    return deferred.promise;
-  };
-  /**
-   * Wraps a NodeJS continuation passing function and returns an equivalent
-   * version that returns a promise.
-   * @example
-   * Q.nfbind(FS.readFile, __filename)("utf-8")
-   * .then(console.log)
-   * .done()
-   */
-
-
-  Q.nfbind = Q.denodeify = function (callback
-  /*...args*/
-  ) {
-    if (callback === undefined) {
-      throw new Error("Q can't wrap an undefined function");
-    }
-
-    var baseArgs = array_slice(arguments, 1);
-    return function () {
-      var nodeArgs = baseArgs.concat(array_slice(arguments));
-      var deferred = defer();
-      nodeArgs.push(deferred.makeNodeResolver());
-      Q(callback).fapply(nodeArgs).fail(deferred.reject);
-      return deferred.promise;
-    };
-  };
-
-  Promise.prototype.nfbind = Promise.prototype.denodeify = function ()
-  /*...args*/
-  {
-    var args = array_slice(arguments);
-    args.unshift(this);
-    return Q.denodeify.apply(void 0, args);
-  };
-
-  Q.nbind = function (callback, thisp
-  /*...args*/
-  ) {
-    var baseArgs = array_slice(arguments, 2);
-    return function () {
-      var nodeArgs = baseArgs.concat(array_slice(arguments));
-      var deferred = defer();
-      nodeArgs.push(deferred.makeNodeResolver());
-
-      function bound() {
-        return callback.apply(thisp, arguments);
-      }
-
-      Q(bound).fapply(nodeArgs).fail(deferred.reject);
-      return deferred.promise;
-    };
-  };
-
-  Promise.prototype.nbind = function ()
-  /*thisp, ...args*/
-  {
-    var args = array_slice(arguments, 0);
-    args.unshift(this);
-    return Q.nbind.apply(void 0, args);
-  };
-  /**
-   * Calls a method of a Node-style object that accepts a Node-style
-   * callback with a given array of arguments, plus a provided callback.
-   * @param object an object that has the named method
-   * @param {String} name name of the method of object
-   * @param {Array} args arguments to pass to the method; the callback
-   * will be provided by Q and appended to these arguments.
-   * @returns a promise for the value or error
-   */
-
-
-  Q.nmapply = // XXX As proposed by "Redsandro"
-  Q.npost = function (object, name, args) {
-    return Q(object).npost(name, args);
-  };
-
-  Promise.prototype.nmapply = // XXX As proposed by "Redsandro"
-  Promise.prototype.npost = function (name, args) {
-    var nodeArgs = array_slice(args || []);
-    var deferred = defer();
-    nodeArgs.push(deferred.makeNodeResolver());
-    this.dispatch("post", [name, nodeArgs]).fail(deferred.reject);
-    return deferred.promise;
-  };
-  /**
-   * Calls a method of a Node-style object that accepts a Node-style
-   * callback, forwarding the given variadic arguments, plus a provided
-   * callback argument.
-   * @param object an object that has the named method
-   * @param {String} name name of the method of object
-   * @param ...args arguments to pass to the method; the callback will
-   * be provided by Q and appended to these arguments.
-   * @returns a promise for the value or error
-   */
-
-
-  Q.nsend = // XXX Based on Mark Miller's proposed "send"
-  Q.nmcall = // XXX Based on "Redsandro's" proposal
-  Q.ninvoke = function (object, name
-  /*...args*/
-  ) {
-    var nodeArgs = array_slice(arguments, 2);
-    var deferred = defer();
-    nodeArgs.push(deferred.makeNodeResolver());
-    Q(object).dispatch("post", [name, nodeArgs]).fail(deferred.reject);
-    return deferred.promise;
-  };
-
-  Promise.prototype.nsend = // XXX Based on Mark Miller's proposed "send"
-  Promise.prototype.nmcall = // XXX Based on "Redsandro's" proposal
-  Promise.prototype.ninvoke = function (name
-  /*...args*/
-  ) {
-    var nodeArgs = array_slice(arguments, 1);
-    var deferred = defer();
-    nodeArgs.push(deferred.makeNodeResolver());
-    this.dispatch("post", [name, nodeArgs]).fail(deferred.reject);
-    return deferred.promise;
-  };
-  /**
-   * If a function would like to support both Node continuation-passing-style and
-   * promise-returning-style, it can end its internal promise chain with
-   * `nodeify(nodeback)`, forwarding the optional nodeback argument.  If the user
-   * elects to use a nodeback, the result will be sent there.  If they do not
-   * pass a nodeback, they will receive the result promise.
-   * @param object a result (or a promise for a result)
-   * @param {Function} nodeback a Node.js-style callback
-   * @returns either the promise or nothing
-   */
-
-
-  Q.nodeify = nodeify;
-
-  function nodeify(object, nodeback) {
-    return Q(object).nodeify(nodeback);
-  }
-
-  Promise.prototype.nodeify = function (nodeback) {
-    if (nodeback) {
-      this.then(function (value) {
-        Q.nextTick(function () {
-          nodeback(null, value);
-        });
-      }, function (error) {
-        Q.nextTick(function () {
-          nodeback(error);
-        });
-      });
-    } else {
-      return this;
-    }
-  };
-
-  Q.noConflict = function () {
-    throw new Error("Q.noConflict only works when Q is used as a global");
-  }; // All code before this point will be filtered from stack traces.
-
-
-  var qEndingLine = captureLine();
-  return Q;
-});
-},{"process":"node_modules/process/browser.js"}],"src/common/loader.ts":[function(require,module,exports) {
+})({"src/common/loader.ts":[function(require,module,exports) {
 "use strict";
 
 var __awaiter = this && this.__awaiter || function (thisArg, _arguments, P, generator) {
@@ -2689,10 +280,81 @@ var __spreadArrays = this && this.__spreadArrays || function () {
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+;
+var loadFunctions = {
+  'text': function text(url) {
+    return __awaiter(void 0, void 0, Promise, function () {
+      var response, data;
+      return __generator(this, function (_a) {
+        switch (_a.label) {
+          case 0:
+            return [4
+            /*yield*/
+            , fetch(url)];
 
-var q_1 = require("q");
+          case 1:
+            response = _a.sent();
+            return [4
+            /*yield*/
+            , response.text()];
 
-; // This is helper class to fetch resources from the webserver
+          case 2:
+            data = _a.sent();
+            return [2
+            /*return*/
+            , data];
+        }
+      });
+    });
+  },
+  'json': function json(url) {
+    return __awaiter(void 0, void 0, Promise, function () {
+      var response, data;
+      return __generator(this, function (_a) {
+        switch (_a.label) {
+          case 0:
+            return [4
+            /*yield*/
+            , fetch(url)];
+
+          case 1:
+            response = _a.sent();
+            return [4
+            /*yield*/
+            , response.json()];
+
+          case 2:
+            data = _a.sent();
+            return [2
+            /*return*/
+            , data];
+        }
+      });
+    });
+  },
+  'image': function image(url) {
+    return __awaiter(void 0, void 0, Promise, function () {
+      return __generator(this, function (_a) {
+        return [2
+        /*return*/
+        , new Promise(function (resolve, reject) {
+          var image = new Image();
+
+          try {
+            if (new URL(url).origin !== window.origin) image.crossOrigin = "";
+          } catch (_a) {}
+
+          image.onload = function () {
+            return resolve(image);
+          };
+
+          image.onerror = reject;
+          image.src = url;
+        })];
+      });
+    });
+  }
+}; // This is helper class to fetch resources from the webserver
 // Unlike C++, we can't block the main thread till files are read, so we use promises to notify the Game Class when the resources are ready
 // This class is a work in progress so expect it to be enhanced in future labs
 
@@ -2709,11 +371,7 @@ function () {
 
     var _loop_1 = function _loop_1(name) {
       var resource = resources[name];
-      var promise = fetch(resource.url).then(function (response) {
-        if (resource.type === 'text') return response.text();
-        if (resource.type === 'json') return response.json();
-        q_1.reject("Resource Type \"" + resource.type + "\" is unknown");
-      }).then(function (data) {
+      var promise = loadFunctions[resource.type](resource.url).then(function (data) {
         _this.resources[name] = data;
         if (resource.success) resource.success(name, data, resource, _this);
       }).catch(function (reason) {
@@ -2784,7 +442,7 @@ function () {
 }();
 
 exports.default = Loader;
-},{"q":"node_modules/q/q.js"}],"node_modules/ts-key-enum/dist/js/Key.enum.js":[function(require,module,exports) {
+},{}],"node_modules/ts-key-enum/dist/js/Key.enum.js":[function(require,module,exports) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
@@ -11468,10 +9126,6 @@ Object.defineProperty(exports, "__esModule", {
 
 var ts_key_enum_1 = require("ts-key-enum");
 
-var ts_key_enum_2 = require("ts-key-enum");
-
-exports.Key = ts_key_enum_2.Key;
-
 var gl_matrix_1 = require("gl-matrix"); // This is a small helper class we created to manage the user input
 // The input on webpages is received via event listeners only so this class add some listeners and collect the keyboard and mouse input to be accessed at any time
 // This class is a work in progress so expect it to be enhanced in future labs
@@ -11484,6 +9138,7 @@ function () {
     var _this = this;
 
     this.firstMouseMove = true;
+    this.pointerLocked = false;
     this.canvas = canvas;
     this.currentKeys = {};
     this.previousKeys = {};
@@ -11493,24 +9148,47 @@ function () {
       this.previousKeys[key] = false;
     }
 
-    document.body.addEventListener("keydown", function (ev) {
-      _this.currentKeys[ev.key] = true;
+    for (var ascii = 32; ascii < 127; ascii++) {
+      var key = String.fromCharCode(ascii);
+      this.currentKeys[key] = false;
+      this.previousKeys[key] = false;
+    }
 
-      switch (ev.key) {
-        case ts_key_enum_1.Key.ArrowUp:
-        case ts_key_enum_1.Key.ArrowDown:
-        case ts_key_enum_1.Key.ArrowLeft:
-        case ts_key_enum_1.Key.ArrowRight:
-        case ' ':
-          ev.preventDefault();
+    document.addEventListener("keydown", function (ev) {
+      if (document.activeElement === canvas) {
+        var key = ev.key;
+
+        if (key.length == 1) {
+          var code = key.charCodeAt(0);
+          if (code >= 'A'.charCodeAt(0) && code <= 'Z'.charCodeAt(0)) key = key.toLowerCase();
+        }
+
+        _this.currentKeys[key] = true;
+
+        switch (ev.key) {
+          case ts_key_enum_1.Key.ArrowUp:
+          case ts_key_enum_1.Key.ArrowDown:
+          case ts_key_enum_1.Key.ArrowLeft:
+          case ts_key_enum_1.Key.ArrowRight:
+          case ' ':
+            ev.preventDefault();
+        }
       }
     });
-    document.body.addEventListener("keyup", function (ev) {
-      _this.currentKeys[ev.key] = false;
+    document.addEventListener("keyup", function (ev) {
+      var key = ev.key;
+
+      if (key.length == 1) {
+        var code = key.charCodeAt(0);
+        if (code >= 'A'.charCodeAt(0) && code <= 'Z'.charCodeAt(0)) key = key.toLowerCase();
+      }
+
+      _this.currentKeys[key] = false;
     });
     this.currentButtons = [false, false, false];
     this.previousButtons = [false, false, false];
     canvas.addEventListener("mousedown", function (ev) {
+      canvas.focus();
       ev.preventDefault();
       _this.currentButtons[ev.button] = true;
     });
@@ -11518,17 +9196,58 @@ function () {
       ev.preventDefault();
       _this.currentButtons[ev.button] = false;
     });
-    this.currentPosition = gl_matrix_1.vec2.fromValues(0, 0);
-    this.perviousPosition = gl_matrix_1.vec2.fromValues(0, 0);
+    this.currentMousePosition = gl_matrix_1.vec2.fromValues(0, 0);
+    this.perviousMousePosition = gl_matrix_1.vec2.fromValues(0, 0);
     canvas.addEventListener("mousemove", function (ev) {
       ev.preventDefault();
-      gl_matrix_1.vec2.set(_this.currentPosition, ev.pageX - canvas.offsetLeft, ev.pageY - canvas.offsetTop);
+
+      if (_this.pointerLocked) {
+        _this.currentMousePosition[0] += ev.movementX;
+        _this.currentMousePosition[1] += ev.movementY;
+      } else {
+        gl_matrix_1.vec2.set(_this.currentMousePosition, ev.pageX - canvas.offsetLeft, ev.pageY - canvas.offsetTop);
+      }
 
       if (_this.firstMouseMove) {
-        gl_matrix_1.vec2.copy(_this.perviousPosition, _this.currentPosition);
+        gl_matrix_1.vec2.copy(_this.perviousMousePosition, _this.currentMousePosition);
         _this.firstMouseMove = false;
       }
     });
+    this.previousWheelPosition = gl_matrix_1.vec3.fromValues(0, 0, 0);
+    this.currentWheelPosition = gl_matrix_1.vec3.fromValues(0, 0, 0);
+    canvas.addEventListener("wheel", function (ev) {
+      ev.preventDefault();
+      _this.currentWheelPosition[0] += ev.deltaX;
+      _this.currentWheelPosition[1] += ev.deltaY;
+      _this.currentWheelPosition[2] += ev.deltaZ;
+    });
+    canvas.addEventListener("drag", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("dragend", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("dragenter", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("dragexit", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("dragleave", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("dragover", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("dragstart", function (ev) {
+      ev.preventDefault();
+    });
+    canvas.addEventListener("drop", function (ev) {
+      ev.preventDefault();
+    });
+    document.addEventListener("pointerlockchange", function () {
+      _this.pointerLocked = document.pointerLockElement == canvas;
+    }, false);
   }
 
   Input.prototype.update = function () {
@@ -11536,11 +9255,17 @@ function () {
       this.previousKeys[key] = this.currentKeys[key];
     }
 
+    for (var ascii = 32; ascii < 127; ascii++) {
+      var key = String.fromCharCode(ascii);
+      this.previousKeys[key] = this.currentKeys[key];
+    }
+
     for (var button = 0; button < 3; button++) {
       this.previousButtons[button] = this.currentButtons[button];
     }
 
-    gl_matrix_1.vec2.copy(this.perviousPosition, this.currentPosition);
+    gl_matrix_1.vec2.copy(this.perviousMousePosition, this.currentMousePosition);
+    gl_matrix_1.vec3.copy(this.previousWheelPosition, this.currentWheelPosition);
   };
 
   Input.prototype.isKeyDown = function (key) {
@@ -11575,12 +9300,45 @@ function () {
     return !this.currentButtons[button] && this.previousButtons[button];
   };
 
-  Input.prototype.getMousePosition = function () {
-    return gl_matrix_1.vec2.copy(gl_matrix_1.vec2.create(), this.currentPosition);
+  Object.defineProperty(Input.prototype, "MousePosition", {
+    get: function get() {
+      return gl_matrix_1.vec2.copy(gl_matrix_1.vec2.create(), this.currentMousePosition);
+    },
+    enumerable: true,
+    configurable: true
+  });
+  Object.defineProperty(Input.prototype, "MouseDelta", {
+    get: function get() {
+      return gl_matrix_1.vec2.sub(gl_matrix_1.vec2.create(), this.currentMousePosition, this.perviousMousePosition);
+    },
+    enumerable: true,
+    configurable: true
+  });
+  Object.defineProperty(Input.prototype, "WheelPosition", {
+    get: function get() {
+      return gl_matrix_1.vec3.copy(gl_matrix_1.vec3.create(), this.currentWheelPosition);
+    },
+    enumerable: true,
+    configurable: true
+  });
+  Object.defineProperty(Input.prototype, "WheelDelta", {
+    get: function get() {
+      return gl_matrix_1.vec3.sub(gl_matrix_1.vec3.create(), this.currentWheelPosition, this.previousWheelPosition);
+    },
+    enumerable: true,
+    configurable: true
+  });
+
+  Input.prototype.requestPointerLock = function () {
+    this.canvas.requestPointerLock();
   };
 
-  Input.prototype.getMouseDelta = function () {
-    return gl_matrix_1.vec2.sub(gl_matrix_1.vec2.create(), this.currentPosition, this.perviousPosition);
+  Input.prototype.exitPointerLock = function () {
+    document.exitPointerLock();
+  };
+
+  Input.prototype.isPointerLocked = function () {
+    return this.pointerLocked;
   };
 
   return Input;
@@ -11635,7 +9393,16 @@ function () {
     this.nextSceneReady = false; // Whether the files requested by the next scene has been loaded or not 
 
     this.canvas = canvas;
-    this.gl = this.canvas.getContext("webgl2"); // This command loads the WebGL2 context which we will use to draw
+    this.gl = this.canvas.getContext("webgl2", {
+      preserveDrawingBuffer: true,
+      alpha: true,
+      antialias: true,
+      depth: true,
+      powerPreference: "high-performance",
+      premultipliedAlpha: false,
+      stencil: true // this will tell the browser that we want a stencil buffer
+
+    }); // This command loads the WebGL2 context which we will use to draw
 
     this.input = new input_1.default(this.canvas);
     this.lastTick = performance.now();
@@ -11755,11 +9522,1107 @@ function () {
     }
   };
 
+  ShaderProgram.prototype.use = function () {
+    this.gl.useProgram(this.program);
+  }; //
+  // Uniform Setters (For convenience)
+  //
+  // One Component Setters
+
+
+  ShaderProgram.prototype.setUniform1f = function (name, x) {
+    this.gl.uniform1f(this.gl.getUniformLocation(this.program, name), x);
+  };
+
+  ShaderProgram.prototype.setUniform1fv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform1fv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform1i = function (name, x) {
+    this.gl.uniform1i(this.gl.getUniformLocation(this.program, name), x);
+  };
+
+  ShaderProgram.prototype.setUniform1iv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform1iv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform1ui = function (name, x) {
+    this.gl.uniform1ui(this.gl.getUniformLocation(this.program, name), x);
+  };
+
+  ShaderProgram.prototype.setUniform1uiv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform1uiv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  }; // Two Component Setters
+
+
+  ShaderProgram.prototype.setUniform2f = function (name, v) {
+    this.gl.uniform2f(this.gl.getUniformLocation(this.program, name), v[0], v[1]);
+  };
+
+  ShaderProgram.prototype.setUniform2fv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform2fv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform2i = function (name, v) {
+    this.gl.uniform2i(this.gl.getUniformLocation(this.program, name), v[0], v[1]);
+  };
+
+  ShaderProgram.prototype.setUniform2iv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform2iv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform2ui = function (name, v) {
+    this.gl.uniform2ui(this.gl.getUniformLocation(this.program, name), v[0], v[1]);
+  };
+
+  ShaderProgram.prototype.setUniform2uiv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform2uiv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  }; // Three Component Setters
+
+
+  ShaderProgram.prototype.setUniform3f = function (name, v) {
+    this.gl.uniform3f(this.gl.getUniformLocation(this.program, name), v[0], v[1], v[2]);
+  };
+
+  ShaderProgram.prototype.setUniform3fv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform3fv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform3i = function (name, v) {
+    this.gl.uniform3i(this.gl.getUniformLocation(this.program, name), v[0], v[1], v[2]);
+  };
+
+  ShaderProgram.prototype.setUniform3iv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform3iv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform3ui = function (name, v) {
+    this.gl.uniform3ui(this.gl.getUniformLocation(this.program, name), v[0], v[1], v[2]);
+  };
+
+  ShaderProgram.prototype.setUniform3uiv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform3uiv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  }; // four Component Setters
+
+
+  ShaderProgram.prototype.setUniform4f = function (name, v) {
+    this.gl.uniform4f(this.gl.getUniformLocation(this.program, name), v[0], v[1], v[2], v[3]);
+  };
+
+  ShaderProgram.prototype.setUniform4fv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform4fv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform4i = function (name, v) {
+    this.gl.uniform4i(this.gl.getUniformLocation(this.program, name), v[0], v[1], v[2], v[3]);
+  };
+
+  ShaderProgram.prototype.setUniform4iv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform4iv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniform4ui = function (name, v) {
+    this.gl.uniform4ui(this.gl.getUniformLocation(this.program, name), v[0], v[1], v[2], v[3]);
+  };
+
+  ShaderProgram.prototype.setUniform4uiv = function (name, data, srcOffset, srcLength) {
+    this.gl.uniform4uiv(this.gl.getUniformLocation(this.program, name), data, srcOffset, srcLength);
+  }; // Matrix Setters
+
+
+  ShaderProgram.prototype.setUniformMatrix2fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix2fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix2x3fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix2x3fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix2x4fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix2x4fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix3fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix3fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix3x2fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix3x2fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix3x4fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix3x4fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix4fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix4fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix4x2fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix4x2fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
+  ShaderProgram.prototype.setUniformMatrix4x3fv = function (name, transpose, data, srcOffset, srcLength) {
+    this.gl.uniformMatrix4x3fv(this.gl.getUniformLocation(this.program, name), transpose, data, srcOffset, srcLength);
+  };
+
   return ShaderProgram;
 }();
 
 exports.default = ShaderProgram;
-},{}],"src/scenes/start-menu.ts":[function(require,module,exports) {
+},{}],"src/common/mesh.ts":[function(require,module,exports) {
+"use strict"; //This file contains a Mesh class (used to store Vertices and how to draw them)
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var Mesh =
+/** @class */
+function () {
+  // The constructor takes a WebGL context and a list of vertex attribute descriptors
+  // It will get all the buffer names and create them then it will build the Vertex Array to read the attributes from them
+  function Mesh(gl, descriptors) {
+    this.gl = gl;
+    this.descriptors = descriptors;
+    this.VBOs = {};
+    var bufferNames = Array.from(new Set(descriptors.map(function (desc) {
+      return desc.buffer;
+    })));
+
+    for (var _i = 0, bufferNames_1 = bufferNames; _i < bufferNames_1.length; _i++) {
+      var bufferName = bufferNames_1[_i];
+      this.VBOs[bufferName] = this.gl.createBuffer();
+    }
+
+    this.EBO = this.gl.createBuffer();
+    this.VAO = this.gl.createVertexArray();
+    this.gl.bindVertexArray(this.VAO);
+
+    for (var _a = 0, _b = this.descriptors; _a < _b.length; _a++) {
+      var descriptor = _b[_a];
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.VBOs[descriptor.buffer]);
+      this.gl.enableVertexAttribArray(descriptor.attributeLocation);
+      this.gl.vertexAttribPointer(descriptor.attributeLocation, descriptor.size, descriptor.type, descriptor.normalized, descriptor.stride, descriptor.offset);
+    }
+
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.EBO);
+    this.gl.bindVertexArray(null);
+  } // Just a dispose variable to free memory
+
+
+  Mesh.prototype.dispose = function () {
+    this.gl.deleteVertexArray(this.VAO);
+    this.gl.deleteBuffer(this.EBO);
+
+    for (var bufferName in this.VBOs) {
+      this.gl.deleteBuffer(this.VBOs[bufferName]);
+    }
+
+    this.VBOs = null;
+  }; // We will use this to fill the vertex buffer data
+
+
+  Mesh.prototype.setBufferData = function (bufferName, bufferData, usage) {
+    if (bufferName in this.VBOs) {
+      this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.VBOs[bufferName]);
+      this.gl.bufferData(this.gl.ARRAY_BUFFER, bufferData, usage);
+    } else {
+      console.error("\"" + bufferName + "\" is not found in the buffers list");
+    }
+  }; // We will use this to fill the Elements Buffer data and know how many vertex we will draw
+
+
+  Mesh.prototype.setElementsData = function (bufferData, usage) {
+    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.EBO);
+    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, bufferData, usage);
+    this.elementCount = bufferData.length;
+    if (bufferData instanceof Uint8Array || bufferData instanceof Uint8ClampedArray) this.elementType = this.gl.UNSIGNED_BYTE;else if (bufferData instanceof Uint16Array) this.elementType = this.gl.UNSIGNED_SHORT;else if (bufferData instanceof Uint32Array) this.elementType = this.gl.UNSIGNED_INT;
+  }; // As the name says, this draws the mesh
+
+
+  Mesh.prototype.draw = function (mode) {
+    if (mode === void 0) {
+      mode = this.gl.TRIANGLES;
+    }
+
+    this.gl.bindVertexArray(this.VAO);
+    this.gl.drawElements(mode, this.elementCount, this.elementType, 0);
+    this.gl.bindVertexArray(null);
+  };
+
+  return Mesh;
+}();
+
+exports.default = Mesh;
+},{}],"node_modules/webgl-obj-loader/dist/webgl-obj-loader.min.js":[function(require,module,exports) {
+var define;
+!function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define("OBJ",[],t):"object"==typeof exports?exports.OBJ=t():e.OBJ=t()}("undefined"!=typeof self?self:this,(function(){return function(e){var t={};function n(a){if(t[a])return t[a].exports;var s=t[a]={i:a,l:!1,exports:{}};return e[a].call(s.exports,s,s.exports,n),s.l=!0,s.exports}return n.m=e,n.c=t,n.d=function(e,t,a){n.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:a})},n.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},n.t=function(e,t){if(1&t&&(e=n(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var a=Object.create(null);if(n.r(a),Object.defineProperty(a,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var s in e)n.d(a,s,function(t){return e[t]}.bind(null,s));return a},n.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return n.d(t,"a",t),t},n.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},n.p="/",n(n.s=0)}({"./src/index.ts":
+/*!**********************!*\
+  !*** ./src/index.ts ***!
+  \**********************/
+/*! exports provided: Attribute, DuplicateAttributeException, Layout, Material, MaterialLibrary, Mesh, TYPES, downloadModels, downloadMeshes, initMeshBuffers, deleteMeshBuffers, version */function(module,__webpack_exports__,__webpack_require__){"use strict";eval('__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "version", function() { return version; });\n/* harmony import */ var _mesh__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./mesh */ "./src/mesh.ts");\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "Mesh", function() { return _mesh__WEBPACK_IMPORTED_MODULE_0__["default"]; });\n\n/* harmony import */ var _material__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./material */ "./src/material.ts");\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "Material", function() { return _material__WEBPACK_IMPORTED_MODULE_1__["Material"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "MaterialLibrary", function() { return _material__WEBPACK_IMPORTED_MODULE_1__["MaterialLibrary"]; });\n\n/* harmony import */ var _layout__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./layout */ "./src/layout.ts");\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "Attribute", function() { return _layout__WEBPACK_IMPORTED_MODULE_2__["Attribute"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "DuplicateAttributeException", function() { return _layout__WEBPACK_IMPORTED_MODULE_2__["DuplicateAttributeException"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "Layout", function() { return _layout__WEBPACK_IMPORTED_MODULE_2__["Layout"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "TYPES", function() { return _layout__WEBPACK_IMPORTED_MODULE_2__["TYPES"]; });\n\n/* harmony import */ var _utils__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./utils */ "./src/utils.ts");\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "downloadModels", function() { return _utils__WEBPACK_IMPORTED_MODULE_3__["downloadModels"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "downloadMeshes", function() { return _utils__WEBPACK_IMPORTED_MODULE_3__["downloadMeshes"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "initMeshBuffers", function() { return _utils__WEBPACK_IMPORTED_MODULE_3__["initMeshBuffers"]; });\n\n/* harmony reexport (safe) */ __webpack_require__.d(__webpack_exports__, "deleteMeshBuffers", function() { return _utils__WEBPACK_IMPORTED_MODULE_3__["deleteMeshBuffers"]; });\n\n\n\n\n\nconst version = "2.0.3";\n/**\n * @namespace\n */\n\n\n\n//# sourceURL=webpack://OBJ/./src/index.ts?')},"./src/layout.ts":
+/*!***********************!*\
+  !*** ./src/layout.ts ***!
+  \***********************/
+/*! exports provided: TYPES, DuplicateAttributeException, Attribute, Layout */function(module,__webpack_exports__,__webpack_require__){"use strict";eval('__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "TYPES", function() { return TYPES; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "DuplicateAttributeException", function() { return DuplicateAttributeException; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Attribute", function() { return Attribute; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Layout", function() { return Layout; });\nvar TYPES;\n(function (TYPES) {\n    TYPES["BYTE"] = "BYTE";\n    TYPES["UNSIGNED_BYTE"] = "UNSIGNED_BYTE";\n    TYPES["SHORT"] = "SHORT";\n    TYPES["UNSIGNED_SHORT"] = "UNSIGNED_SHORT";\n    TYPES["FLOAT"] = "FLOAT";\n})(TYPES || (TYPES = {}));\n/**\n * An exception for when two or more of the same attributes are found in the\n * same layout.\n * @private\n */\nclass DuplicateAttributeException extends Error {\n    /**\n     * Create a DuplicateAttributeException\n     * @param {Attribute} attribute - The attribute that was found more than\n     *        once in the {@link Layout}\n     */\n    constructor(attribute) {\n        super(`found duplicate attribute: ${attribute.key}`);\n    }\n}\n/**\n * Represents how a vertex attribute should be packed into an buffer.\n * @private\n */\nclass Attribute {\n    /**\n     * Create an attribute. Do not call this directly, use the predefined\n     * constants.\n     * @param {string} key - The name of this attribute as if it were a key in\n     *        an Object. Use the camel case version of the upper snake case\n     *        const name.\n     * @param {number} size - The number of components per vertex attribute.\n     *        Must be 1, 2, 3, or 4.\n     * @param {string} type - The data type of each component for this\n     *        attribute. Possible values:<br/>\n     *        "BYTE": signed 8-bit integer, with values in [-128, 127]<br/>\n     *        "SHORT": signed 16-bit integer, with values in\n     *            [-32768, 32767]<br/>\n     *        "UNSIGNED_BYTE": unsigned 8-bit integer, with values in\n     *            [0, 255]<br/>\n     *        "UNSIGNED_SHORT": unsigned 16-bit integer, with values in\n     *            [0, 65535]<br/>\n     *        "FLOAT": 32-bit floating point number\n     * @param {boolean} normalized - Whether integer data values should be\n     *        normalized when being casted to a float.<br/>\n     *        If true, signed integers are normalized to [-1, 1].<br/>\n     *        If true, unsigned integers are normalized to [0, 1].<br/>\n     *        For type "FLOAT", this parameter has no effect.\n     */\n    constructor(key, size, type, normalized = false) {\n        this.key = key;\n        this.size = size;\n        this.type = type;\n        this.normalized = normalized;\n        switch (type) {\n            case "BYTE":\n            case "UNSIGNED_BYTE":\n                this.sizeOfType = 1;\n                break;\n            case "SHORT":\n            case "UNSIGNED_SHORT":\n                this.sizeOfType = 2;\n                break;\n            case "FLOAT":\n                this.sizeOfType = 4;\n                break;\n            default:\n                throw new Error(`Unknown gl type: ${type}`);\n        }\n        this.sizeInBytes = this.sizeOfType * size;\n    }\n}\n/**\n * A class to represent the memory layout for a vertex attribute array. Used by\n * {@link Mesh}\'s TBD(...) method to generate a packed array from mesh data.\n * <p>\n * Layout can sort of be thought of as a C-style struct declaration.\n * {@link Mesh}\'s TBD(...) method will use the {@link Layout} instance to\n * pack an array in the given attribute order.\n * <p>\n * Layout also is very helpful when calling a WebGL context\'s\n * <code>vertexAttribPointer</code> method. If you\'ve created a buffer using\n * a Layout instance, then the same Layout instance can be used to determine\n * the size, type, normalized, stride, and offset parameters for\n * <code>vertexAttribPointer</code>.\n * <p>\n * For example:\n * <pre><code>\n *\n * const index = glctx.getAttribLocation(shaderProgram, "pos");\n * glctx.vertexAttribPointer(\n *   layout.position.size,\n *   glctx[layout.position.type],\n *   layout.position.normalized,\n *   layout.position.stride,\n *   layout.position.offset);\n * </code></pre>\n * @see {@link Mesh}\n */\nclass Layout {\n    /**\n     * Create a Layout object. This constructor will throw if any duplicate\n     * attributes are given.\n     * @param {Array} ...attributes - An ordered list of attributes that\n     *        describe the desired memory layout for each vertex attribute.\n     *        <p>\n     *\n     * @see {@link Mesh}\n     */\n    constructor(...attributes) {\n        this.attributes = attributes;\n        this.attributeMap = {};\n        let offset = 0;\n        let maxStrideMultiple = 0;\n        for (const attribute of attributes) {\n            if (this.attributeMap[attribute.key]) {\n                throw new DuplicateAttributeException(attribute);\n            }\n            // Add padding to satisfy WebGL\'s requirement that all\n            // vertexAttribPointer calls have an offset that is a multiple of\n            // the type size.\n            if (offset % attribute.sizeOfType !== 0) {\n                offset += attribute.sizeOfType - (offset % attribute.sizeOfType);\n                console.warn("Layout requires padding before " + attribute.key + " attribute");\n            }\n            this.attributeMap[attribute.key] = {\n                attribute: attribute,\n                size: attribute.size,\n                type: attribute.type,\n                normalized: attribute.normalized,\n                offset: offset,\n            };\n            offset += attribute.sizeInBytes;\n            maxStrideMultiple = Math.max(maxStrideMultiple, attribute.sizeOfType);\n        }\n        // Add padding to the end to satisfy WebGL\'s requirement that all\n        // vertexAttribPointer calls have a stride that is a multiple of the\n        // type size. Because we\'re putting differently sized attributes into\n        // the same buffer, it must be padded to a multiple of the largest\n        // type size.\n        if (offset % maxStrideMultiple !== 0) {\n            offset += maxStrideMultiple - (offset % maxStrideMultiple);\n            console.warn("Layout requires padding at the back");\n        }\n        this.stride = offset;\n        for (const attribute of attributes) {\n            this.attributeMap[attribute.key].stride = this.stride;\n        }\n    }\n}\n// Geometry attributes\n/**\n * Attribute layout to pack a vertex\'s x, y, & z as floats\n *\n * @see {@link Layout}\n */\nLayout.POSITION = new Attribute("position", 3, TYPES.FLOAT);\n/**\n * Attribute layout to pack a vertex\'s normal\'s x, y, & z as floats\n *\n * @see {@link Layout}\n */\nLayout.NORMAL = new Attribute("normal", 3, TYPES.FLOAT);\n/**\n * Attribute layout to pack a vertex\'s normal\'s x, y, & z as floats.\n * <p>\n * This value will be computed on-the-fly based on the texture coordinates.\n * If no texture coordinates are available, the generated value will default to\n * 0, 0, 0.\n *\n * @see {@link Layout}\n */\nLayout.TANGENT = new Attribute("tangent", 3, TYPES.FLOAT);\n/**\n * Attribute layout to pack a vertex\'s normal\'s bitangent x, y, & z as floats.\n * <p>\n * This value will be computed on-the-fly based on the texture coordinates.\n * If no texture coordinates are available, the generated value will default to\n * 0, 0, 0.\n * @see {@link Layout}\n */\nLayout.BITANGENT = new Attribute("bitangent", 3, TYPES.FLOAT);\n/**\n * Attribute layout to pack a vertex\'s texture coordinates\' u & v as floats\n *\n * @see {@link Layout}\n */\nLayout.UV = new Attribute("uv", 2, TYPES.FLOAT);\n// Material attributes\n/**\n * Attribute layout to pack an unsigned short to be interpreted as a the index\n * into a {@link Mesh}\'s materials list.\n * <p>\n * The intention of this value is to send all of the {@link Mesh}\'s materials\n * into multiple shader uniforms and then reference the current one by this\n * vertex attribute.\n * <p>\n * example glsl code:\n *\n * <pre><code>\n *  // this is bound using MATERIAL_INDEX\n *  attribute int materialIndex;\n *\n *  struct Material {\n *    vec3 diffuse;\n *    vec3 specular;\n *    vec3 specularExponent;\n *  };\n *\n *  uniform Material materials[MAX_MATERIALS];\n *\n *  // ...\n *\n *  vec3 diffuse = materials[materialIndex];\n *\n * </code></pre>\n * TODO: More description & test to make sure subscripting by attributes even\n * works for webgl\n *\n * @see {@link Layout}\n */\nLayout.MATERIAL_INDEX = new Attribute("materialIndex", 1, TYPES.SHORT);\nLayout.MATERIAL_ENABLED = new Attribute("materialEnabled", 1, TYPES.UNSIGNED_SHORT);\nLayout.AMBIENT = new Attribute("ambient", 3, TYPES.FLOAT);\nLayout.DIFFUSE = new Attribute("diffuse", 3, TYPES.FLOAT);\nLayout.SPECULAR = new Attribute("specular", 3, TYPES.FLOAT);\nLayout.SPECULAR_EXPONENT = new Attribute("specularExponent", 3, TYPES.FLOAT);\nLayout.EMISSIVE = new Attribute("emissive", 3, TYPES.FLOAT);\nLayout.TRANSMISSION_FILTER = new Attribute("transmissionFilter", 3, TYPES.FLOAT);\nLayout.DISSOLVE = new Attribute("dissolve", 1, TYPES.FLOAT);\nLayout.ILLUMINATION = new Attribute("illumination", 1, TYPES.UNSIGNED_SHORT);\nLayout.REFRACTION_INDEX = new Attribute("refractionIndex", 1, TYPES.FLOAT);\nLayout.SHARPNESS = new Attribute("sharpness", 1, TYPES.FLOAT);\nLayout.MAP_DIFFUSE = new Attribute("mapDiffuse", 1, TYPES.SHORT);\nLayout.MAP_AMBIENT = new Attribute("mapAmbient", 1, TYPES.SHORT);\nLayout.MAP_SPECULAR = new Attribute("mapSpecular", 1, TYPES.SHORT);\nLayout.MAP_SPECULAR_EXPONENT = new Attribute("mapSpecularExponent", 1, TYPES.SHORT);\nLayout.MAP_DISSOLVE = new Attribute("mapDissolve", 1, TYPES.SHORT);\nLayout.ANTI_ALIASING = new Attribute("antiAliasing", 1, TYPES.UNSIGNED_SHORT);\nLayout.MAP_BUMP = new Attribute("mapBump", 1, TYPES.SHORT);\nLayout.MAP_DISPLACEMENT = new Attribute("mapDisplacement", 1, TYPES.SHORT);\nLayout.MAP_DECAL = new Attribute("mapDecal", 1, TYPES.SHORT);\nLayout.MAP_EMISSIVE = new Attribute("mapEmissive", 1, TYPES.SHORT);\n\n\n//# sourceURL=webpack://OBJ/./src/layout.ts?')},"./src/material.ts":
+/*!*************************!*\
+  !*** ./src/material.ts ***!
+  \*************************/
+/*! exports provided: Material, MaterialLibrary */function(module,__webpack_exports__,__webpack_require__){"use strict";eval('__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Material", function() { return Material; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "MaterialLibrary", function() { return MaterialLibrary; });\n/**\n * The Material class.\n */\nclass Material {\n    constructor(name) {\n        this.name = name;\n        /**\n         * Constructor\n         * @param {String} name the unique name of the material\n         */\n        // The values for the following attibutes\n        // are an array of R, G, B normalized values.\n        // Ka - Ambient Reflectivity\n        this.ambient = [0, 0, 0];\n        // Kd - Defuse Reflectivity\n        this.diffuse = [0, 0, 0];\n        // Ks\n        this.specular = [0, 0, 0];\n        // Ke\n        this.emissive = [0, 0, 0];\n        // Tf\n        this.transmissionFilter = [0, 0, 0];\n        // d\n        this.dissolve = 0;\n        // valid range is between 0 and 1000\n        this.specularExponent = 0;\n        // either d or Tr; valid values are normalized\n        this.transparency = 0;\n        // illum - the enum of the illumination model to use\n        this.illumination = 0;\n        // Ni - Set to "normal" (air).\n        this.refractionIndex = 1;\n        // sharpness\n        this.sharpness = 0;\n        // map_Kd\n        this.mapDiffuse = emptyTextureOptions();\n        // map_Ka\n        this.mapAmbient = emptyTextureOptions();\n        // map_Ks\n        this.mapSpecular = emptyTextureOptions();\n        // map_Ns\n        this.mapSpecularExponent = emptyTextureOptions();\n        // map_d\n        this.mapDissolve = emptyTextureOptions();\n        // map_aat\n        this.antiAliasing = false;\n        // map_bump or bump\n        this.mapBump = emptyTextureOptions();\n        // disp\n        this.mapDisplacement = emptyTextureOptions();\n        // decal\n        this.mapDecal = emptyTextureOptions();\n        // map_Ke\n        this.mapEmissive = emptyTextureOptions();\n        // refl - when the reflection type is a cube, there will be multiple refl\n        //        statements for each side of the cube. If it\'s a spherical\n        //        reflection, there should only ever be one.\n        this.mapReflections = [];\n    }\n}\nconst SENTINEL_MATERIAL = new Material("sentinel");\n/**\n * https://en.wikipedia.org/wiki/Wavefront_.obj_file\n * http://paulbourke.net/dataformats/mtl/\n */\nclass MaterialLibrary {\n    constructor(data) {\n        this.data = data;\n        /**\n         * Constructs the Material Parser\n         * @param mtlData the MTL file contents\n         */\n        this.currentMaterial = SENTINEL_MATERIAL;\n        this.materials = {};\n        this.parse();\n    }\n    /* eslint-disable camelcase */\n    /* the function names here disobey camelCase conventions\n     to make parsing/routing easier. see the parse function\n     documentation for more information. */\n    /**\n     * Creates a new Material object and adds to the registry.\n     * @param tokens the tokens associated with the directive\n     */\n    parse_newmtl(tokens) {\n        const name = tokens[0];\n        // console.info(\'Parsing new Material:\', name);\n        this.currentMaterial = new Material(name);\n        this.materials[name] = this.currentMaterial;\n    }\n    /**\n     * See the documenation for parse_Ka below for a better understanding.\n     *\n     * Given a list of possible color tokens, returns an array of R, G, and B\n     * color values.\n     *\n     * @param tokens the tokens associated with the directive\n     * @return {*} a 3 element array containing the R, G, and B values\n     * of the color.\n     */\n    parseColor(tokens) {\n        if (tokens[0] == "spectral") {\n            throw new Error("The MTL parser does not support spectral curve files. You will " +\n                "need to convert the MTL colors to either RGB or CIEXYZ.");\n        }\n        if (tokens[0] == "xyz") {\n            throw new Error("The MTL parser does not currently support XYZ colors. Either convert the " +\n                "XYZ values to RGB or create an issue to add support for XYZ");\n        }\n        // from my understanding of the spec, RGB values at this point\n        // will either be 3 floats or exactly 1 float, so that\'s the check\n        // that i\'m going to perform here\n        if (tokens.length == 3) {\n            const [x, y, z] = tokens;\n            return [parseFloat(x), parseFloat(y), parseFloat(z)];\n        }\n        // Since tokens at this point has a length of 3, we\'re going to assume\n        // it\'s exactly 1, skipping the check for 2.\n        const value = parseFloat(tokens[0]);\n        // in this case, all values are equivalent\n        return [value, value, value];\n    }\n    /**\n     * Parse the ambient reflectivity\n     *\n     * A Ka directive can take one of three forms:\n     *   - Ka r g b\n     *   - Ka spectral file.rfl\n     *   - Ka xyz x y z\n     * These three forms are mutually exclusive in that only one\n     * declaration can exist per material. It is considered a syntax\n     * error otherwise.\n     *\n     * The "Ka" form specifies the ambient reflectivity using RGB values.\n     * The "g" and "b" values are optional. If only the "r" value is\n     * specified, then the "g" and "b" values are assigned the value of\n     * "r". Values are normally in the range 0.0 to 1.0. Values outside\n     * of this range increase or decrease the reflectivity accordingly.\n     *\n     * The "Ka spectral" form specifies the ambient reflectivity using a\n     * spectral curve. "file.rfl" is the name of the ".rfl" file containing\n     * the curve data. "factor" is an optional argument which is a multiplier\n     * for the values in the .rfl file and defaults to 1.0 if not specified.\n     *\n     * The "Ka xyz" form specifies the ambient reflectivity using CIEXYZ values.\n     * "x y z" are the values of the CIEXYZ color space. The "y" and "z" arguments\n     * are optional and take on the value of the "x" component if only "x" is\n     * specified. The "x y z" values are normally in the range of 0.0 to 1.0 and\n     * increase or decrease ambient reflectivity accordingly outside of that\n     * range.\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Ka(tokens) {\n        this.currentMaterial.ambient = this.parseColor(tokens);\n    }\n    /**\n     * Diffuse Reflectivity\n     *\n     * Similar to the Ka directive. Simply replace "Ka" with "Kd" and the rules\n     * are the same\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Kd(tokens) {\n        this.currentMaterial.diffuse = this.parseColor(tokens);\n    }\n    /**\n     * Spectral Reflectivity\n     *\n     * Similar to the Ka directive. Simply replace "Ks" with "Kd" and the rules\n     * are the same\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Ks(tokens) {\n        this.currentMaterial.specular = this.parseColor(tokens);\n    }\n    /**\n     * Emissive\n     *\n     * The amount and color of light emitted by the object.\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Ke(tokens) {\n        this.currentMaterial.emissive = this.parseColor(tokens);\n    }\n    /**\n     * Transmission Filter\n     *\n     * Any light passing through the object is filtered by the transmission\n     * filter, which only allows specific colors to pass through. For example, Tf\n     * 0 1 0 allows all of the green to pass through and filters out all of the\n     * red and blue.\n     *\n     * Similar to the Ka directive. Simply replace "Ks" with "Tf" and the rules\n     * are the same\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Tf(tokens) {\n        this.currentMaterial.transmissionFilter = this.parseColor(tokens);\n    }\n    /**\n     * Specifies the dissolve for the current material.\n     *\n     * Statement: d [-halo] `factor`\n     *\n     * Example: "d 0.5"\n     *\n     * The factor is the amount this material dissolves into the background. A\n     * factor of 1.0 is fully opaque. This is the default when a new material is\n     * created. A factor of 0.0 is fully dissolved (completely transparent).\n     *\n     * Unlike a real transparent material, the dissolve does not depend upon\n     * material thickness nor does it have any spectral character. Dissolve works\n     * on all illumination models.\n     *\n     * The dissolve statement allows for an optional "-halo" flag which indicates\n     * that a dissolve is dependent on the surface orientation relative to the\n     * viewer. For example, a sphere with the following dissolve, "d -halo 0.0",\n     * will be fully dissolved at its center and will appear gradually more opaque\n     * toward its edge.\n     *\n     * "factor" is the minimum amount of dissolve applied to the material. The\n     * amount of dissolve will vary between 1.0 (fully opaque) and the specified\n     * "factor". The formula is:\n     *\n     *    dissolve = 1.0 - (N*v)(1.0-factor)\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_d(tokens) {\n        // this ignores the -halo option as I can\'t find any documentation on what\n        // it\'s supposed to be.\n        this.currentMaterial.dissolve = parseFloat(tokens.pop() || "0");\n    }\n    /**\n     * The "illum" statement specifies the illumination model to use in the\n     * material. Illumination models are mathematical equations that represent\n     * various material lighting and shading effects.\n     *\n     * The illumination number can be a number from 0 to 10. The following are\n     * the list of illumination enumerations and their summaries:\n     * 0. Color on and Ambient off\n     * 1. Color on and Ambient on\n     * 2. Highlight on\n     * 3. Reflection on and Ray trace on\n     * 4. Transparency: Glass on, Reflection: Ray trace on\n     * 5. Reflection: Fresnel on and Ray trace on\n     * 6. Transparency: Refraction on, Reflection: Fresnel off and Ray trace on\n     * 7. Transparency: Refraction on, Reflection: Fresnel on and Ray trace on\n     * 8. Reflection on and Ray trace off\n     * 9. Transparency: Glass on, Reflection: Ray trace off\n     * 10. Casts shadows onto invisible surfaces\n     *\n     * Example: "illum 2" to specify the "Highlight on" model\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_illum(tokens) {\n        this.currentMaterial.illumination = parseInt(tokens[0]);\n    }\n    /**\n     * Optical Density (AKA Index of Refraction)\n     *\n     * Statement: Ni `index`\n     *\n     * Example: Ni 1.0\n     *\n     * Specifies the optical density for the surface. `index` is the value\n     * for the optical density. The values can range from 0.001 to 10.  A value of\n     * 1.0 means that light does not bend as it passes through an object.\n     * Increasing the optical_density increases the amount of bending. Glass has\n     * an index of refraction of about 1.5. Values of less than 1.0 produce\n     * bizarre results and are not recommended\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Ni(tokens) {\n        this.currentMaterial.refractionIndex = parseFloat(tokens[0]);\n    }\n    /**\n     * Specifies the specular exponent for the current material. This defines the\n     * focus of the specular highlight.\n     *\n     * Statement: Ns `exponent`\n     *\n     * Example: "Ns 250"\n     *\n     * `exponent` is the value for the specular exponent. A high exponent results\n     * in a tight, concentrated highlight. Ns Values normally range from 0 to\n     * 1000.\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_Ns(tokens) {\n        this.currentMaterial.specularExponent = parseInt(tokens[0]);\n    }\n    /**\n     * Specifies the sharpness of the reflections from the local reflection map.\n     *\n     * Statement: sharpness `value`\n     *\n     * Example: "sharpness 100"\n     *\n     * If a material does not have a local reflection map defined in its material\n     * defintions, sharpness will apply to the global reflection map defined in\n     * PreView.\n     *\n     * `value` can be a number from 0 to 1000. The default is 60. A high value\n     * results in a clear reflection of objects in the reflection map.\n     *\n     * Tip: sharpness values greater than 100 introduce aliasing effects in\n     * flat surfaces that are viewed at a sharp angle.\n     *\n     * @param tokens the tokens associated with the directive\n     */\n    parse_sharpness(tokens) {\n        this.currentMaterial.sharpness = parseInt(tokens[0]);\n    }\n    /**\n     * Parses the -cc flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -cc flag\n     * @param options the Object of all image options\n     */\n    parse_cc(values, options) {\n        options.colorCorrection = values[0] == "on";\n    }\n    /**\n     * Parses the -blendu flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -blendu flag\n     * @param options the Object of all image options\n     */\n    parse_blendu(values, options) {\n        options.horizontalBlending = values[0] == "on";\n    }\n    /**\n     * Parses the -blendv flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -blendv flag\n     * @param options the Object of all image options\n     */\n    parse_blendv(values, options) {\n        options.verticalBlending = values[0] == "on";\n    }\n    /**\n     * Parses the -boost flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -boost flag\n     * @param options the Object of all image options\n     */\n    parse_boost(values, options) {\n        options.boostMipMapSharpness = parseFloat(values[0]);\n    }\n    /**\n     * Parses the -mm flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -mm flag\n     * @param options the Object of all image options\n     */\n    parse_mm(values, options) {\n        options.modifyTextureMap.brightness = parseFloat(values[0]);\n        options.modifyTextureMap.contrast = parseFloat(values[1]);\n    }\n    /**\n     * Parses and sets the -o, -s, and -t  u, v, and w values\n     *\n     * @param values the values passed to the -o, -s, -t flag\n     * @param {Object} option the Object of either the -o, -s, -t option\n     * @param {Integer} defaultValue the Object of all image options\n     */\n    parse_ost(values, option, defaultValue) {\n        while (values.length < 3) {\n            values.push(defaultValue.toString());\n        }\n        option.u = parseFloat(values[0]);\n        option.v = parseFloat(values[1]);\n        option.w = parseFloat(values[2]);\n    }\n    /**\n     * Parses the -o flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -o flag\n     * @param options the Object of all image options\n     */\n    parse_o(values, options) {\n        this.parse_ost(values, options.offset, 0);\n    }\n    /**\n     * Parses the -s flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -s flag\n     * @param options the Object of all image options\n     */\n    parse_s(values, options) {\n        this.parse_ost(values, options.scale, 1);\n    }\n    /**\n     * Parses the -t flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -t flag\n     * @param options the Object of all image options\n     */\n    parse_t(values, options) {\n        this.parse_ost(values, options.turbulence, 0);\n    }\n    /**\n     * Parses the -texres flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -texres flag\n     * @param options the Object of all image options\n     */\n    parse_texres(values, options) {\n        options.textureResolution = parseFloat(values[0]);\n    }\n    /**\n     * Parses the -clamp flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -clamp flag\n     * @param options the Object of all image options\n     */\n    parse_clamp(values, options) {\n        options.clamp = values[0] == "on";\n    }\n    /**\n     * Parses the -bm flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -bm flag\n     * @param options the Object of all image options\n     */\n    parse_bm(values, options) {\n        options.bumpMultiplier = parseFloat(values[0]);\n    }\n    /**\n     * Parses the -imfchan flag and updates the options object with the values.\n     *\n     * @param values the values passed to the -imfchan flag\n     * @param options the Object of all image options\n     */\n    parse_imfchan(values, options) {\n        options.imfChan = values[0];\n    }\n    /**\n     * This only exists for relection maps and denotes the type of reflection.\n     *\n     * @param values the values passed to the -type flag\n     * @param options the Object of all image options\n     */\n    parse_type(values, options) {\n        options.reflectionType = values[0];\n    }\n    /**\n     * Parses the texture\'s options and returns an options object with the info\n     *\n     * @param tokens all of the option tokens to pass to the texture\n     * @return {Object} a complete object of objects to apply to the texture\n     */\n    parseOptions(tokens) {\n        const options = emptyTextureOptions();\n        let option;\n        let values;\n        const optionsToValues = {};\n        tokens.reverse();\n        while (tokens.length) {\n            // token is guaranteed to exists here, hence the explicit "as"\n            const token = tokens.pop();\n            if (token.startsWith("-")) {\n                option = token.substr(1);\n                optionsToValues[option] = [];\n            }\n            else if (option) {\n                optionsToValues[option].push(token);\n            }\n        }\n        for (option in optionsToValues) {\n            if (!optionsToValues.hasOwnProperty(option)) {\n                continue;\n            }\n            values = optionsToValues[option];\n            const optionMethod = this[`parse_${option}`];\n            if (optionMethod) {\n                optionMethod.bind(this)(values, options);\n            }\n        }\n        return options;\n    }\n    /**\n     * Parses the given texture map line.\n     *\n     * @param tokens all of the tokens representing the texture\n     * @return a complete object of objects to apply to the texture\n     */\n    parseMap(tokens) {\n        // according to wikipedia:\n        // (https://en.wikipedia.org/wiki/Wavefront_.obj_file#Vendor_specific_alterations)\n        // there is at least one vendor that places the filename before the options\n        // rather than after (which is to spec). All options start with a \'-\'\n        // so if the first token doesn\'t start with a \'-\', we\'re going to assume\n        // it\'s the name of the map file.\n        let optionsString;\n        let filename = "";\n        if (!tokens[0].startsWith("-")) {\n            [filename, ...optionsString] = tokens;\n        }\n        else {\n            filename = tokens.pop();\n            optionsString = tokens;\n        }\n        const options = this.parseOptions(optionsString);\n        options.filename = filename.replace(/\\\\/g, "/");\n        return options;\n    }\n    /**\n     * Parses the ambient map.\n     *\n     * @param tokens list of tokens for the map_Ka direcive\n     */\n    parse_map_Ka(tokens) {\n        this.currentMaterial.mapAmbient = this.parseMap(tokens);\n    }\n    /**\n     * Parses the diffuse map.\n     *\n     * @param tokens list of tokens for the map_Kd direcive\n     */\n    parse_map_Kd(tokens) {\n        this.currentMaterial.mapDiffuse = this.parseMap(tokens);\n    }\n    /**\n     * Parses the specular map.\n     *\n     * @param tokens list of tokens for the map_Ks direcive\n     */\n    parse_map_Ks(tokens) {\n        this.currentMaterial.mapSpecular = this.parseMap(tokens);\n    }\n    /**\n     * Parses the emissive map.\n     *\n     * @param tokens list of tokens for the map_Ke direcive\n     */\n    parse_map_Ke(tokens) {\n        this.currentMaterial.mapEmissive = this.parseMap(tokens);\n    }\n    /**\n     * Parses the specular exponent map.\n     *\n     * @param tokens list of tokens for the map_Ns direcive\n     */\n    parse_map_Ns(tokens) {\n        this.currentMaterial.mapSpecularExponent = this.parseMap(tokens);\n    }\n    /**\n     * Parses the dissolve map.\n     *\n     * @param tokens list of tokens for the map_d direcive\n     */\n    parse_map_d(tokens) {\n        this.currentMaterial.mapDissolve = this.parseMap(tokens);\n    }\n    /**\n     * Parses the anti-aliasing option.\n     *\n     * @param tokens list of tokens for the map_aat direcive\n     */\n    parse_map_aat(tokens) {\n        this.currentMaterial.antiAliasing = tokens[0] == "on";\n    }\n    /**\n     * Parses the bump map.\n     *\n     * @param tokens list of tokens for the map_bump direcive\n     */\n    parse_map_bump(tokens) {\n        this.currentMaterial.mapBump = this.parseMap(tokens);\n    }\n    /**\n     * Parses the bump map.\n     *\n     * @param tokens list of tokens for the bump direcive\n     */\n    parse_bump(tokens) {\n        this.parse_map_bump(tokens);\n    }\n    /**\n     * Parses the disp map.\n     *\n     * @param tokens list of tokens for the disp direcive\n     */\n    parse_disp(tokens) {\n        this.currentMaterial.mapDisplacement = this.parseMap(tokens);\n    }\n    /**\n     * Parses the decal map.\n     *\n     * @param tokens list of tokens for the map_decal direcive\n     */\n    parse_decal(tokens) {\n        this.currentMaterial.mapDecal = this.parseMap(tokens);\n    }\n    /**\n     * Parses the refl map.\n     *\n     * @param tokens list of tokens for the refl direcive\n     */\n    parse_refl(tokens) {\n        this.currentMaterial.mapReflections.push(this.parseMap(tokens));\n    }\n    /**\n     * Parses the MTL file.\n     *\n     * Iterates line by line parsing each MTL directive.\n     *\n     * This function expects the first token in the line\n     * to be a valid MTL directive. That token is then used\n     * to try and run a method on this class. parse_[directive]\n     * E.g., the `newmtl` directive would try to call the method\n     * parse_newmtl. Each parsing function takes in the remaining\n     * list of tokens and updates the currentMaterial class with\n     * the attributes provided.\n     */\n    parse() {\n        const lines = this.data.split(/\\r?\\n/);\n        for (let line of lines) {\n            line = line.trim();\n            if (!line || line.startsWith("#")) {\n                continue;\n            }\n            const [directive, ...tokens] = line.split(/\\s/);\n            const parseMethod = this[`parse_${directive}`];\n            if (!parseMethod) {\n                console.warn(`Don\'t know how to parse the directive: "${directive}"`);\n                continue;\n            }\n            // console.log(`Parsing "${directive}" with tokens: ${tokens}`);\n            parseMethod.bind(this)(tokens);\n        }\n        // some cleanup. These don\'t need to be exposed as public data.\n        delete this.data;\n        this.currentMaterial = SENTINEL_MATERIAL;\n    }\n}\nfunction emptyTextureOptions() {\n    return {\n        colorCorrection: false,\n        horizontalBlending: true,\n        verticalBlending: true,\n        boostMipMapSharpness: 0,\n        modifyTextureMap: {\n            brightness: 0,\n            contrast: 1,\n        },\n        offset: { u: 0, v: 0, w: 0 },\n        scale: { u: 1, v: 1, w: 1 },\n        turbulence: { u: 0, v: 0, w: 0 },\n        clamp: false,\n        textureResolution: null,\n        bumpMultiplier: 1,\n        imfChan: null,\n        filename: "",\n    };\n}\n\n\n//# sourceURL=webpack://OBJ/./src/material.ts?')},"./src/mesh.ts":
+/*!*********************!*\
+  !*** ./src/mesh.ts ***!
+  \*********************/
+/*! exports provided: default */function(module,__webpack_exports__,__webpack_require__){"use strict";eval('__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "default", function() { return Mesh; });\n/* harmony import */ var _layout__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./layout */ "./src/layout.ts");\n\n/**\n * The main Mesh class. The constructor will parse through the OBJ file data\n * and collect the vertex, vertex normal, texture, and face information. This\n * information can then be used later on when creating your VBOs. See\n * OBJ.initMeshBuffers for an example of how to use the newly created Mesh\n */\nclass Mesh {\n    /**\n     * Create a Mesh\n     * @param {String} objectData - a string representation of an OBJ file with\n     *     newlines preserved.\n     * @param {Object} options - a JS object containing valid options. See class\n     *     documentation for options.\n     * @param {bool} options.enableWTextureCoord - Texture coordinates can have\n     *     an optional "w" coordinate after the u and v coordinates. This extra\n     *     value can be used in order to perform fancy transformations on the\n     *     textures themselves. Default is to truncate to only the u an v\n     *     coordinates. Passing true will provide a default value of 0 in the\n     *     event that any or all texture coordinates don\'t provide a w value.\n     *     Always use the textureStride attribute in order to determine the\n     *     stride length of the texture coordinates when rendering the element\n     *     array.\n     * @param {bool} options.calcTangentsAndBitangents - Calculate the tangents\n     *     and bitangents when loading of the OBJ is completed. This adds two new\n     *     attributes to the Mesh instance: `tangents` and `bitangents`.\n     */\n    constructor(objectData, options) {\n        this.name = "";\n        this.indicesPerMaterial = [];\n        this.materialsByIndex = {};\n        this.tangents = [];\n        this.bitangents = [];\n        options = options || {};\n        options.materials = options.materials || {};\n        options.enableWTextureCoord = !!options.enableWTextureCoord;\n        // the list of unique vertex, normal, texture, attributes\n        this.vertexNormals = [];\n        this.textures = [];\n        // the indicies to draw the faces\n        this.indices = [];\n        this.textureStride = options.enableWTextureCoord ? 3 : 2;\n        /*\n        The OBJ file format does a sort of compression when saving a model in a\n        program like Blender. There are at least 3 sections (4 including textures)\n        within the file. Each line in a section begins with the same string:\n          * \'v\': indicates vertex section\n          * \'vn\': indicates vertex normal section\n          * \'f\': indicates the faces section\n          * \'vt\': indicates vertex texture section (if textures were used on the model)\n        Each of the above sections (except for the faces section) is a list/set of\n        unique vertices.\n\n        Each line of the faces section contains a list of\n        (vertex, [texture], normal) groups.\n\n        **Note:** The following documentation will use a capital "V" Vertex to\n        denote the above (vertex, [texture], normal) groups whereas a lowercase\n        "v" vertex is used to denote an X, Y, Z coordinate.\n\n        Some examples:\n            // the texture index is optional, both formats are possible for models\n            // without a texture applied\n            f 1/25 18/46 12/31\n            f 1//25 18//46 12//31\n\n            // A 3 vertex face with texture indices\n            f 16/92/11 14/101/22 1/69/1\n\n            // A 4 vertex face\n            f 16/92/11 40/109/40 38/114/38 14/101/22\n\n        The first two lines are examples of a 3 vertex face without a texture applied.\n        The second is an example of a 3 vertex face with a texture applied.\n        The third is an example of a 4 vertex face. Note: a face can contain N\n        number of vertices.\n\n        Each number that appears in one of the groups is a 1-based index\n        corresponding to an item from the other sections (meaning that indexing\n        starts at one and *not* zero).\n\n        For example:\n            `f 16/92/11` is saying to\n              - take the 16th element from the [v] vertex array\n              - take the 92nd element from the [vt] texture array\n              - take the 11th element from the [vn] normal array\n            and together they make a unique vertex.\n        Using all 3+ unique Vertices from the face line will produce a polygon.\n\n        Now, you could just go through the OBJ file and create a new vertex for\n        each face line and WebGL will draw what appears to be the same model.\n        However, vertices will be overlapped and duplicated all over the place.\n\n        Consider a cube in 3D space centered about the origin and each side is\n        2 units long. The front face (with the positive Z-axis pointing towards\n        you) would have a Top Right vertex (looking orthogonal to its normal)\n        mapped at (1,1,1) The right face would have a Top Left vertex (looking\n        orthogonal to its normal) at (1,1,1) and the top face would have a Bottom\n        Right vertex (looking orthogonal to its normal) at (1,1,1). Each face\n        has a vertex at the same coordinates, however, three distinct vertices\n        will be drawn at the same spot.\n\n        To solve the issue of duplicate Vertices (the `(vertex, [texture], normal)`\n        groups), while iterating through the face lines, when a group is encountered\n        the whole group string (\'16/92/11\') is checked to see if it exists in the\n        packed.hashindices object, and if it doesn\'t, the indices it specifies\n        are used to look up each attribute in the corresponding attribute arrays\n        already created. The values are then copied to the corresponding unpacked\n        array (flattened to play nice with WebGL\'s ELEMENT_ARRAY_BUFFER indexing),\n        the group string is added to the hashindices set and the current unpacked\n        index is used as this hashindices value so that the group of elements can\n        be reused. The unpacked index is incremented. If the group string already\n        exists in the hashindices object, its corresponding value is the index of\n        that group and is appended to the unpacked indices array.\n       */\n        const verts = [];\n        const vertNormals = [];\n        const textures = [];\n        const materialNamesByIndex = [];\n        const materialIndicesByName = {};\n        // keep track of what material we\'ve seen last\n        let currentMaterialIndex = -1;\n        let currentObjectByMaterialIndex = 0;\n        // unpacking stuff\n        const unpacked = {\n            verts: [],\n            norms: [],\n            textures: [],\n            hashindices: {},\n            indices: [[]],\n            materialIndices: [],\n            index: 0,\n        };\n        const VERTEX_RE = /^v\\s/;\n        const NORMAL_RE = /^vn\\s/;\n        const TEXTURE_RE = /^vt\\s/;\n        const FACE_RE = /^f\\s/;\n        const WHITESPACE_RE = /\\s+/;\n        const USE_MATERIAL_RE = /^usemtl/;\n        // array of lines separated by the newline\n        const lines = objectData.split("\\n");\n        for (let line of lines) {\n            line = line.trim();\n            if (!line || line.startsWith("#")) {\n                continue;\n            }\n            const elements = line.split(WHITESPACE_RE);\n            elements.shift();\n            if (VERTEX_RE.test(line)) {\n                // if this is a vertex\n                verts.push(...elements);\n            }\n            else if (NORMAL_RE.test(line)) {\n                // if this is a vertex normal\n                vertNormals.push(...elements);\n            }\n            else if (TEXTURE_RE.test(line)) {\n                let coords = elements;\n                // by default, the loader will only look at the U and V\n                // coordinates of the vt declaration. So, this truncates the\n                // elements to only those 2 values. If W texture coordinate\n                // support is enabled, then the texture coordinate is\n                // expected to have three values in it.\n                if (elements.length > 2 && !options.enableWTextureCoord) {\n                    coords = elements.slice(0, 2);\n                }\n                else if (elements.length === 2 && options.enableWTextureCoord) {\n                    // If for some reason W texture coordinate support is enabled\n                    // and only the U and V coordinates are given, then we supply\n                    // the default value of 0 so that the stride length is correct\n                    // when the textures are unpacked below.\n                    coords.push("0");\n                }\n                textures.push(...coords);\n            }\n            else if (USE_MATERIAL_RE.test(line)) {\n                const materialName = elements[0];\n                // check to see if we\'ve ever seen it before\n                if (!(materialName in materialIndicesByName)) {\n                    // new material we\'ve never seen\n                    materialNamesByIndex.push(materialName);\n                    materialIndicesByName[materialName] = materialNamesByIndex.length - 1;\n                    // push new array into indices\n                    // already contains an array at index zero, don\'t add\n                    if (materialIndicesByName[materialName] > 0) {\n                        unpacked.indices.push([]);\n                    }\n                }\n                // keep track of the current material index\n                currentMaterialIndex = materialIndicesByName[materialName];\n                // update current index array\n                currentObjectByMaterialIndex = currentMaterialIndex;\n            }\n            else if (FACE_RE.test(line)) {\n                // if this is a face\n                /*\n                split this face into an array of Vertex groups\n                for example:\n                   f 16/92/11 14/101/22 1/69/1\n                becomes:\n                  [\'16/92/11\', \'14/101/22\', \'1/69/1\'];\n                */\n                const triangles = triangulate(elements);\n                for (const triangle of triangles) {\n                    for (let j = 0, eleLen = triangle.length; j < eleLen; j++) {\n                        const hash = triangle[j] + "," + currentMaterialIndex;\n                        if (hash in unpacked.hashindices) {\n                            unpacked.indices[currentObjectByMaterialIndex].push(unpacked.hashindices[hash]);\n                        }\n                        else {\n                            /*\n                        Each element of the face line array is a Vertex which has its\n                        attributes delimited by a forward slash. This will separate\n                        each attribute into another array:\n                            \'19/92/11\'\n                        becomes:\n                            Vertex = [\'19\', \'92\', \'11\'];\n                        where\n                            Vertex[0] is the vertex index\n                            Vertex[1] is the texture index\n                            Vertex[2] is the normal index\n                         Think of faces having Vertices which are comprised of the\n                         attributes location (v), texture (vt), and normal (vn).\n                         */\n                            const vertex = triangle[j].split("/");\n                            // it\'s possible for faces to only specify the vertex\n                            // and the normal. In this case, vertex will only have\n                            // a length of 2 and not 3 and the normal will be the\n                            // second item in the list with an index of 1.\n                            const normalIndex = vertex.length - 1;\n                            /*\n                         The verts, textures, and vertNormals arrays each contain a\n                         flattend array of coordinates.\n\n                         Because it gets confusing by referring to Vertex and then\n                         vertex (both are different in my descriptions) I will explain\n                         what\'s going on using the vertexNormals array:\n\n                         vertex[2] will contain the one-based index of the vertexNormals\n                         section (vn). One is subtracted from this index number to play\n                         nice with javascript\'s zero-based array indexing.\n\n                         Because vertexNormal is a flattened array of x, y, z values,\n                         simple pointer arithmetic is used to skip to the start of the\n                         vertexNormal, then the offset is added to get the correct\n                         component: +0 is x, +1 is y, +2 is z.\n\n                         This same process is repeated for verts and textures.\n                         */\n                            // Vertex position\n                            unpacked.verts.push(+verts[(+vertex[0] - 1) * 3 + 0]);\n                            unpacked.verts.push(+verts[(+vertex[0] - 1) * 3 + 1]);\n                            unpacked.verts.push(+verts[(+vertex[0] - 1) * 3 + 2]);\n                            // Vertex textures\n                            if (textures.length) {\n                                const stride = options.enableWTextureCoord ? 3 : 2;\n                                unpacked.textures.push(+textures[(+vertex[1] - 1) * stride + 0]);\n                                unpacked.textures.push(+textures[(+vertex[1] - 1) * stride + 1]);\n                                if (options.enableWTextureCoord) {\n                                    unpacked.textures.push(+textures[(+vertex[1] - 1) * stride + 2]);\n                                }\n                            }\n                            // Vertex normals\n                            unpacked.norms.push(+vertNormals[(+vertex[normalIndex] - 1) * 3 + 0]);\n                            unpacked.norms.push(+vertNormals[(+vertex[normalIndex] - 1) * 3 + 1]);\n                            unpacked.norms.push(+vertNormals[(+vertex[normalIndex] - 1) * 3 + 2]);\n                            // Vertex material indices\n                            unpacked.materialIndices.push(currentMaterialIndex);\n                            // add the newly created Vertex to the list of indices\n                            unpacked.hashindices[hash] = unpacked.index;\n                            unpacked.indices[currentObjectByMaterialIndex].push(unpacked.hashindices[hash]);\n                            // increment the counter\n                            unpacked.index += 1;\n                        }\n                    }\n                }\n            }\n        }\n        this.vertices = unpacked.verts;\n        this.vertexNormals = unpacked.norms;\n        this.textures = unpacked.textures;\n        this.vertexMaterialIndices = unpacked.materialIndices;\n        this.indices = unpacked.indices[currentObjectByMaterialIndex];\n        this.indicesPerMaterial = unpacked.indices;\n        this.materialNames = materialNamesByIndex;\n        this.materialIndices = materialIndicesByName;\n        this.materialsByIndex = {};\n        if (options.calcTangentsAndBitangents) {\n            this.calculateTangentsAndBitangents();\n        }\n    }\n    /**\n     * Calculates the tangents and bitangents of the mesh that forms an orthogonal basis together with the\n     * normal in the direction of the texture coordinates. These are useful for setting up the TBN matrix\n     * when distorting the normals through normal maps.\n     * Method derived from: http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-13-normal-mapping/\n     *\n     * This method requires the normals and texture coordinates to be parsed and set up correctly.\n     * Adds the tangents and bitangents as members of the class instance.\n     */\n    calculateTangentsAndBitangents() {\n        console.assert(!!(this.vertices &&\n            this.vertices.length &&\n            this.vertexNormals &&\n            this.vertexNormals.length &&\n            this.textures &&\n            this.textures.length), "Missing attributes for calculating tangents and bitangents");\n        const unpacked = {\n            tangents: [...new Array(this.vertices.length)].map(_ => 0),\n            bitangents: [...new Array(this.vertices.length)].map(_ => 0),\n        };\n        // Loop through all faces in the whole mesh\n        const indices = this.indices;\n        const vertices = this.vertices;\n        const normals = this.vertexNormals;\n        const uvs = this.textures;\n        for (let i = 0; i < indices.length; i += 3) {\n            const i0 = indices[i + 0];\n            const i1 = indices[i + 1];\n            const i2 = indices[i + 2];\n            const x_v0 = vertices[i0 * 3 + 0];\n            const y_v0 = vertices[i0 * 3 + 1];\n            const z_v0 = vertices[i0 * 3 + 2];\n            const x_uv0 = uvs[i0 * 2 + 0];\n            const y_uv0 = uvs[i0 * 2 + 1];\n            const x_v1 = vertices[i1 * 3 + 0];\n            const y_v1 = vertices[i1 * 3 + 1];\n            const z_v1 = vertices[i1 * 3 + 2];\n            const x_uv1 = uvs[i1 * 2 + 0];\n            const y_uv1 = uvs[i1 * 2 + 1];\n            const x_v2 = vertices[i2 * 3 + 0];\n            const y_v2 = vertices[i2 * 3 + 1];\n            const z_v2 = vertices[i2 * 3 + 2];\n            const x_uv2 = uvs[i2 * 2 + 0];\n            const y_uv2 = uvs[i2 * 2 + 1];\n            const x_deltaPos1 = x_v1 - x_v0;\n            const y_deltaPos1 = y_v1 - y_v0;\n            const z_deltaPos1 = z_v1 - z_v0;\n            const x_deltaPos2 = x_v2 - x_v0;\n            const y_deltaPos2 = y_v2 - y_v0;\n            const z_deltaPos2 = z_v2 - z_v0;\n            const x_uvDeltaPos1 = x_uv1 - x_uv0;\n            const y_uvDeltaPos1 = y_uv1 - y_uv0;\n            const x_uvDeltaPos2 = x_uv2 - x_uv0;\n            const y_uvDeltaPos2 = y_uv2 - y_uv0;\n            const rInv = x_uvDeltaPos1 * y_uvDeltaPos2 - y_uvDeltaPos1 * x_uvDeltaPos2;\n            const r = 1.0 / Math.abs(rInv < 0.0001 ? 1.0 : rInv);\n            // Tangent\n            const x_tangent = (x_deltaPos1 * y_uvDeltaPos2 - x_deltaPos2 * y_uvDeltaPos1) * r;\n            const y_tangent = (y_deltaPos1 * y_uvDeltaPos2 - y_deltaPos2 * y_uvDeltaPos1) * r;\n            const z_tangent = (z_deltaPos1 * y_uvDeltaPos2 - z_deltaPos2 * y_uvDeltaPos1) * r;\n            // Bitangent\n            const x_bitangent = (x_deltaPos2 * x_uvDeltaPos1 - x_deltaPos1 * x_uvDeltaPos2) * r;\n            const y_bitangent = (y_deltaPos2 * x_uvDeltaPos1 - y_deltaPos1 * x_uvDeltaPos2) * r;\n            const z_bitangent = (z_deltaPos2 * x_uvDeltaPos1 - z_deltaPos1 * x_uvDeltaPos2) * r;\n            // Gram-Schmidt orthogonalize\n            //t = glm::normalize(t - n * glm:: dot(n, t));\n            const x_n0 = normals[i0 * 3 + 0];\n            const y_n0 = normals[i0 * 3 + 1];\n            const z_n0 = normals[i0 * 3 + 2];\n            const x_n1 = normals[i1 * 3 + 0];\n            const y_n1 = normals[i1 * 3 + 1];\n            const z_n1 = normals[i1 * 3 + 2];\n            const x_n2 = normals[i2 * 3 + 0];\n            const y_n2 = normals[i2 * 3 + 1];\n            const z_n2 = normals[i2 * 3 + 2];\n            // Tangent\n            const n0_dot_t = x_tangent * x_n0 + y_tangent * y_n0 + z_tangent * z_n0;\n            const n1_dot_t = x_tangent * x_n1 + y_tangent * y_n1 + z_tangent * z_n1;\n            const n2_dot_t = x_tangent * x_n2 + y_tangent * y_n2 + z_tangent * z_n2;\n            const x_resTangent0 = x_tangent - x_n0 * n0_dot_t;\n            const y_resTangent0 = y_tangent - y_n0 * n0_dot_t;\n            const z_resTangent0 = z_tangent - z_n0 * n0_dot_t;\n            const x_resTangent1 = x_tangent - x_n1 * n1_dot_t;\n            const y_resTangent1 = y_tangent - y_n1 * n1_dot_t;\n            const z_resTangent1 = z_tangent - z_n1 * n1_dot_t;\n            const x_resTangent2 = x_tangent - x_n2 * n2_dot_t;\n            const y_resTangent2 = y_tangent - y_n2 * n2_dot_t;\n            const z_resTangent2 = z_tangent - z_n2 * n2_dot_t;\n            const magTangent0 = Math.sqrt(x_resTangent0 * x_resTangent0 + y_resTangent0 * y_resTangent0 + z_resTangent0 * z_resTangent0);\n            const magTangent1 = Math.sqrt(x_resTangent1 * x_resTangent1 + y_resTangent1 * y_resTangent1 + z_resTangent1 * z_resTangent1);\n            const magTangent2 = Math.sqrt(x_resTangent2 * x_resTangent2 + y_resTangent2 * y_resTangent2 + z_resTangent2 * z_resTangent2);\n            // Bitangent\n            const n0_dot_bt = x_bitangent * x_n0 + y_bitangent * y_n0 + z_bitangent * z_n0;\n            const n1_dot_bt = x_bitangent * x_n1 + y_bitangent * y_n1 + z_bitangent * z_n1;\n            const n2_dot_bt = x_bitangent * x_n2 + y_bitangent * y_n2 + z_bitangent * z_n2;\n            const x_resBitangent0 = x_bitangent - x_n0 * n0_dot_bt;\n            const y_resBitangent0 = y_bitangent - y_n0 * n0_dot_bt;\n            const z_resBitangent0 = z_bitangent - z_n0 * n0_dot_bt;\n            const x_resBitangent1 = x_bitangent - x_n1 * n1_dot_bt;\n            const y_resBitangent1 = y_bitangent - y_n1 * n1_dot_bt;\n            const z_resBitangent1 = z_bitangent - z_n1 * n1_dot_bt;\n            const x_resBitangent2 = x_bitangent - x_n2 * n2_dot_bt;\n            const y_resBitangent2 = y_bitangent - y_n2 * n2_dot_bt;\n            const z_resBitangent2 = z_bitangent - z_n2 * n2_dot_bt;\n            const magBitangent0 = Math.sqrt(x_resBitangent0 * x_resBitangent0 +\n                y_resBitangent0 * y_resBitangent0 +\n                z_resBitangent0 * z_resBitangent0);\n            const magBitangent1 = Math.sqrt(x_resBitangent1 * x_resBitangent1 +\n                y_resBitangent1 * y_resBitangent1 +\n                z_resBitangent1 * z_resBitangent1);\n            const magBitangent2 = Math.sqrt(x_resBitangent2 * x_resBitangent2 +\n                y_resBitangent2 * y_resBitangent2 +\n                z_resBitangent2 * z_resBitangent2);\n            unpacked.tangents[i0 * 3 + 0] += x_resTangent0 / magTangent0;\n            unpacked.tangents[i0 * 3 + 1] += y_resTangent0 / magTangent0;\n            unpacked.tangents[i0 * 3 + 2] += z_resTangent0 / magTangent0;\n            unpacked.tangents[i1 * 3 + 0] += x_resTangent1 / magTangent1;\n            unpacked.tangents[i1 * 3 + 1] += y_resTangent1 / magTangent1;\n            unpacked.tangents[i1 * 3 + 2] += z_resTangent1 / magTangent1;\n            unpacked.tangents[i2 * 3 + 0] += x_resTangent2 / magTangent2;\n            unpacked.tangents[i2 * 3 + 1] += y_resTangent2 / magTangent2;\n            unpacked.tangents[i2 * 3 + 2] += z_resTangent2 / magTangent2;\n            unpacked.bitangents[i0 * 3 + 0] += x_resBitangent0 / magBitangent0;\n            unpacked.bitangents[i0 * 3 + 1] += y_resBitangent0 / magBitangent0;\n            unpacked.bitangents[i0 * 3 + 2] += z_resBitangent0 / magBitangent0;\n            unpacked.bitangents[i1 * 3 + 0] += x_resBitangent1 / magBitangent1;\n            unpacked.bitangents[i1 * 3 + 1] += y_resBitangent1 / magBitangent1;\n            unpacked.bitangents[i1 * 3 + 2] += z_resBitangent1 / magBitangent1;\n            unpacked.bitangents[i2 * 3 + 0] += x_resBitangent2 / magBitangent2;\n            unpacked.bitangents[i2 * 3 + 1] += y_resBitangent2 / magBitangent2;\n            unpacked.bitangents[i2 * 3 + 2] += z_resBitangent2 / magBitangent2;\n            // TODO: check handedness\n        }\n        this.tangents = unpacked.tangents;\n        this.bitangents = unpacked.bitangents;\n    }\n    /**\n     * @param layout - A {@link Layout} object that describes the\n     * desired memory layout of the generated buffer\n     * @return The packed array in the ... TODO\n     */\n    makeBufferData(layout) {\n        const numItems = this.vertices.length / 3;\n        const buffer = new ArrayBuffer(layout.stride * numItems);\n        buffer.numItems = numItems;\n        const dataView = new DataView(buffer);\n        for (let i = 0, vertexOffset = 0; i < numItems; i++) {\n            vertexOffset = i * layout.stride;\n            // copy in the vertex data in the order and format given by the\n            // layout param\n            for (const attribute of layout.attributes) {\n                const offset = vertexOffset + layout.attributeMap[attribute.key].offset;\n                switch (attribute.key) {\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].POSITION.key:\n                        dataView.setFloat32(offset, this.vertices[i * 3], true);\n                        dataView.setFloat32(offset + 4, this.vertices[i * 3 + 1], true);\n                        dataView.setFloat32(offset + 8, this.vertices[i * 3 + 2], true);\n                        break;\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].UV.key:\n                        dataView.setFloat32(offset, this.textures[i * 2], true);\n                        dataView.setFloat32(offset + 4, this.textures[i * 2 + 1], true);\n                        break;\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].NORMAL.key:\n                        dataView.setFloat32(offset, this.vertexNormals[i * 3], true);\n                        dataView.setFloat32(offset + 4, this.vertexNormals[i * 3 + 1], true);\n                        dataView.setFloat32(offset + 8, this.vertexNormals[i * 3 + 2], true);\n                        break;\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].MATERIAL_INDEX.key:\n                        dataView.setInt16(offset, this.vertexMaterialIndices[i], true);\n                        break;\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].AMBIENT.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.ambient[0], true);\n                        dataView.setFloat32(offset + 4, material.ambient[1], true);\n                        dataView.setFloat32(offset + 8, material.ambient[2], true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].DIFFUSE.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.diffuse[0], true);\n                        dataView.setFloat32(offset + 4, material.diffuse[1], true);\n                        dataView.setFloat32(offset + 8, material.diffuse[2], true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].SPECULAR.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.specular[0], true);\n                        dataView.setFloat32(offset + 4, material.specular[1], true);\n                        dataView.setFloat32(offset + 8, material.specular[2], true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].SPECULAR_EXPONENT.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.specularExponent, true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].EMISSIVE.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.emissive[0], true);\n                        dataView.setFloat32(offset + 4, material.emissive[1], true);\n                        dataView.setFloat32(offset + 8, material.emissive[2], true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].TRANSMISSION_FILTER.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.transmissionFilter[0], true);\n                        dataView.setFloat32(offset + 4, material.transmissionFilter[1], true);\n                        dataView.setFloat32(offset + 8, material.transmissionFilter[2], true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].DISSOLVE.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.dissolve, true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].ILLUMINATION.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setInt16(offset, material.illumination, true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].REFRACTION_INDEX.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.refractionIndex, true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].SHARPNESS.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setFloat32(offset, material.sharpness, true);\n                        break;\n                    }\n                    case _layout__WEBPACK_IMPORTED_MODULE_0__["Layout"].ANTI_ALIASING.key: {\n                        const materialIndex = this.vertexMaterialIndices[i];\n                        const material = this.materialsByIndex[materialIndex];\n                        if (!material) {\n                            console.warn(\'Material "\' +\n                                this.materialNames[materialIndex] +\n                                \'" not found in mesh. Did you forget to call addMaterialLibrary(...)?"\');\n                            break;\n                        }\n                        dataView.setInt16(offset, material.antiAliasing ? 1 : 0, true);\n                        break;\n                    }\n                }\n            }\n        }\n        return buffer;\n    }\n    makeIndexBufferData() {\n        const buffer = new Uint16Array(this.indices);\n        buffer.numItems = this.indices.length;\n        return buffer;\n    }\n    makeIndexBufferDataForMaterials(...materialIndices) {\n        const indices = new Array().concat(...materialIndices.map(mtlIdx => this.indicesPerMaterial[mtlIdx]));\n        const buffer = new Uint16Array(indices);\n        buffer.numItems = indices.length;\n        return buffer;\n    }\n    addMaterialLibrary(mtl) {\n        for (const name in mtl.materials) {\n            if (!(name in this.materialIndices)) {\n                // This material is not referenced by the mesh\n                continue;\n            }\n            const material = mtl.materials[name];\n            // Find the material index for this material\n            const materialIndex = this.materialIndices[material.name];\n            // Put the material into the materialsByIndex object at the right\n            // spot as determined when the obj file was parsed\n            this.materialsByIndex[materialIndex] = material;\n        }\n    }\n}\nfunction* triangulate(elements) {\n    if (elements.length <= 3) {\n        yield elements;\n    }\n    else if (elements.length === 4) {\n        yield [elements[0], elements[1], elements[2]];\n        yield [elements[2], elements[3], elements[0]];\n    }\n    else {\n        for (let i = 1; i < elements.length - 1; i++) {\n            yield [elements[0], elements[i], elements[i + 1]];\n        }\n    }\n}\n\n\n//# sourceURL=webpack://OBJ/./src/mesh.ts?')},"./src/utils.ts":
+/*!**********************!*\
+  !*** ./src/utils.ts ***!
+  \**********************/
+/*! exports provided: downloadModels, downloadMeshes, initMeshBuffers, deleteMeshBuffers */function(module,__webpack_exports__,__webpack_require__){"use strict";eval('__webpack_require__.r(__webpack_exports__);\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "downloadModels", function() { return downloadModels; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "downloadMeshes", function() { return downloadMeshes; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "initMeshBuffers", function() { return initMeshBuffers; });\n/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "deleteMeshBuffers", function() { return deleteMeshBuffers; });\n/* harmony import */ var _mesh__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./mesh */ "./src/mesh.ts");\n/* harmony import */ var _material__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./material */ "./src/material.ts");\n\n\nfunction downloadMtlTextures(mtl, root) {\n    const mapAttributes = [\n        "mapDiffuse",\n        "mapAmbient",\n        "mapSpecular",\n        "mapDissolve",\n        "mapBump",\n        "mapDisplacement",\n        "mapDecal",\n        "mapEmissive",\n    ];\n    if (!root.endsWith("/")) {\n        root += "/";\n    }\n    const textures = [];\n    for (const materialName in mtl.materials) {\n        if (!mtl.materials.hasOwnProperty(materialName)) {\n            continue;\n        }\n        const material = mtl.materials[materialName];\n        for (const attr of mapAttributes) {\n            const mapData = material[attr];\n            if (!mapData || !mapData.filename) {\n                continue;\n            }\n            const url = root + mapData.filename;\n            textures.push(fetch(url)\n                .then(response => {\n                if (!response.ok) {\n                    throw new Error();\n                }\n                return response.blob();\n            })\n                .then(function (data) {\n                const image = new Image();\n                image.src = URL.createObjectURL(data);\n                mapData.texture = image;\n                return new Promise(resolve => (image.onload = resolve));\n            })\n                .catch(() => {\n                console.error(`Unable to download texture: ${url}`);\n            }));\n        }\n    }\n    return Promise.all(textures);\n}\nfunction getMtl(modelOptions) {\n    if (!(typeof modelOptions.mtl === "string")) {\n        return modelOptions.obj.replace(/\\.obj$/, ".mtl");\n    }\n    return modelOptions.mtl;\n}\n/**\n * Accepts a list of model request objects and returns a Promise that\n * resolves when all models have been downloaded and parsed.\n *\n * The list of model objects follow this interface:\n * {\n *  obj: \'path/to/model.obj\',\n *  mtl: true | \'path/to/model.mtl\',\n *  downloadMtlTextures: true | false\n *  mtlTextureRoot: \'/models/suzanne/maps\'\n *  name: \'suzanne\'\n * }\n *\n * The `obj` attribute is required and should be the path to the\n * model\'s .obj file relative to the current repo (absolute URLs are\n * suggested).\n *\n * The `mtl` attribute is optional and can either be a boolean or\n * a path to the model\'s .mtl file relative to the current URL. If\n * the value is `true`, then the path and basename given for the `obj`\n * attribute is used replacing the .obj suffix for .mtl\n * E.g.: {obj: \'models/foo.obj\', mtl: true} would search for \'models/foo.mtl\'\n *\n * The `name` attribute is optional and is a human friendly name to be\n * included with the parsed OBJ and MTL files. If not given, the base .obj\n * filename will be used.\n *\n * The `downloadMtlTextures` attribute is a flag for automatically downloading\n * any images found in the MTL file and attaching them to each Material\n * created from that file. For example, if material.mapDiffuse is set (there\n * was data in the MTL file), then material.mapDiffuse.texture will contain\n * the downloaded image. This option defaults to `true`. By default, the MTL\'s\n * URL will be used to determine the location of the images.\n *\n * The `mtlTextureRoot` attribute is optional and should point to the location\n * on the server that this MTL\'s texture files are located. The default is to\n * use the MTL file\'s location.\n *\n * @returns {Promise} the result of downloading the given list of models. The\n * promise will resolve with an object whose keys are the names of the models\n * and the value is its Mesh object. Each Mesh object will automatically\n * have its addMaterialLibrary() method called to set the given MTL data (if given).\n */\nfunction downloadModels(models) {\n    const finished = [];\n    for (const model of models) {\n        if (!model.obj) {\n            throw new Error(\'"obj" attribute of model object not set. The .obj file is required to be set \' +\n                "in order to use downloadModels()");\n        }\n        const options = {\n            indicesPerMaterial: !!model.indicesPerMaterial,\n            calcTangentsAndBitangents: !!model.calcTangentsAndBitangents,\n        };\n        // if the name is not provided, dervive it from the given OBJ\n        let name = model.name;\n        if (!name) {\n            const parts = model.obj.split("/");\n            name = parts[parts.length - 1].replace(".obj", "");\n        }\n        const namePromise = Promise.resolve(name);\n        const meshPromise = fetch(model.obj)\n            .then(response => response.text())\n            .then(data => {\n            return new _mesh__WEBPACK_IMPORTED_MODULE_0__["default"](data, options);\n        });\n        let mtlPromise;\n        // Download MaterialLibrary file?\n        if (model.mtl) {\n            const mtl = getMtl(model);\n            mtlPromise = fetch(mtl)\n                .then(response => response.text())\n                .then((data) => {\n                const material = new _material__WEBPACK_IMPORTED_MODULE_1__["MaterialLibrary"](data);\n                if (model.downloadMtlTextures !== false) {\n                    let root = model.mtlTextureRoot;\n                    if (!root) {\n                        // get the directory of the MTL file as default\n                        root = mtl.substr(0, mtl.lastIndexOf("/"));\n                    }\n                    // downloadMtlTextures returns a Promise that\n                    // is resolved once all of the images it\n                    // contains are downloaded. These are then\n                    // attached to the map data objects\n                    return Promise.all([Promise.resolve(material), downloadMtlTextures(material, root)]);\n                }\n                return Promise.all([Promise.resolve(material), undefined]);\n            })\n                .then((value) => {\n                return value[0];\n            });\n        }\n        const parsed = [namePromise, meshPromise, mtlPromise];\n        finished.push(Promise.all(parsed));\n    }\n    return Promise.all(finished).then(ms => {\n        // the "finished" promise is a list of name, Mesh instance,\n        // and MaterialLibary instance. This unpacks and returns an\n        // object mapping name to Mesh (Mesh points to MTL).\n        const models = {};\n        for (const model of ms) {\n            const [name, mesh, mtl] = model;\n            mesh.name = name;\n            if (mtl) {\n                mesh.addMaterialLibrary(mtl);\n            }\n            models[name] = mesh;\n        }\n        return models;\n    });\n}\n/**\n * Takes in an object of `mesh_name`, `\'/url/to/OBJ/file\'` pairs and a callback\n * function. Each OBJ file will be ajaxed in and automatically converted to\n * an OBJ.Mesh. When all files have successfully downloaded the callback\n * function provided will be called and passed in an object containing\n * the newly created meshes.\n *\n * **Note:** In order to use this function as a way to download meshes, a\n * webserver of some sort must be used.\n *\n * @param {Object} nameAndAttrs an object where the key is the name of the mesh and the value is the url to that mesh\'s OBJ file\n *\n * @param {Function} completionCallback should contain a function that will take one parameter: an object array where the keys will be the unique object name and the value will be a Mesh object\n *\n * @param {Object} meshes In case other meshes are loaded separately or if a previously declared variable is desired to be used, pass in a (possibly empty) json object of the pattern: { \'<mesh_name>\': OBJ.Mesh }\n *\n */\nfunction downloadMeshes(nameAndURLs, completionCallback, meshes) {\n    if (meshes === undefined) {\n        meshes = {};\n    }\n    const completed = [];\n    for (const mesh_name in nameAndURLs) {\n        if (!nameAndURLs.hasOwnProperty(mesh_name)) {\n            continue;\n        }\n        const url = nameAndURLs[mesh_name];\n        completed.push(fetch(url)\n            .then(response => response.text())\n            .then(data => {\n            return [mesh_name, new _mesh__WEBPACK_IMPORTED_MODULE_0__["default"](data)];\n        }));\n    }\n    Promise.all(completed).then(ms => {\n        for (const [name, mesh] of ms) {\n            meshes[name] = mesh;\n        }\n        return completionCallback(meshes);\n    });\n}\nfunction _buildBuffer(gl, type, data, itemSize) {\n    const buffer = gl.createBuffer();\n    const arrayView = type === gl.ARRAY_BUFFER ? Float32Array : Uint16Array;\n    gl.bindBuffer(type, buffer);\n    gl.bufferData(type, new arrayView(data), gl.STATIC_DRAW);\n    buffer.itemSize = itemSize;\n    buffer.numItems = data.length / itemSize;\n    return buffer;\n}\n/**\n * Takes in the WebGL context and a Mesh, then creates and appends the buffers\n * to the mesh object as attributes.\n *\n * @param {WebGLRenderingContext} gl the `canvas.getContext(\'webgl\')` context instance\n * @param {Mesh} mesh a single `OBJ.Mesh` instance\n *\n * The newly created mesh attributes are:\n *\n * Attrbute | Description\n * :--- | ---\n * **normalBuffer**       |contains the model&#39;s Vertex Normals\n * normalBuffer.itemSize  |set to 3 items\n * normalBuffer.numItems  |the total number of vertex normals\n * |\n * **textureBuffer**      |contains the model&#39;s Texture Coordinates\n * textureBuffer.itemSize |set to 2 items\n * textureBuffer.numItems |the number of texture coordinates\n * |\n * **vertexBuffer**       |contains the model&#39;s Vertex Position Coordinates (does not include w)\n * vertexBuffer.itemSize  |set to 3 items\n * vertexBuffer.numItems  |the total number of vertices\n * |\n * **indexBuffer**        |contains the indices of the faces\n * indexBuffer.itemSize   |is set to 1\n * indexBuffer.numItems   |the total number of indices\n *\n * A simple example (a lot of steps are missing, so don\'t copy and paste):\n *\n *     const gl   = canvas.getContext(\'webgl\'),\n *         mesh = OBJ.Mesh(obj_file_data);\n *     // compile the shaders and create a shader program\n *     const shaderProgram = gl.createProgram();\n *     // compilation stuff here\n *     ...\n *     // make sure you have vertex, vertex normal, and texture coordinate\n *     // attributes located in your shaders and attach them to the shader program\n *     shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");\n *     gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);\n *\n *     shaderProgram.vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");\n *     gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);\n *\n *     shaderProgram.textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord");\n *     gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);\n *\n *     // create and initialize the vertex, vertex normal, and texture coordinate buffers\n *     // and save on to the mesh object\n *     OBJ.initMeshBuffers(gl, mesh);\n *\n *     // now to render the mesh\n *     gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vertexBuffer);\n *     gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, mesh.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);\n *     // it\'s possible that the mesh doesn\'t contain\n *     // any texture coordinates (e.g. suzanne.obj in the development branch).\n *     // in this case, the texture vertexAttribArray will need to be disabled\n *     // before the call to drawElements\n *     if(!mesh.textures.length){\n *       gl.disableVertexAttribArray(shaderProgram.textureCoordAttribute);\n *     }\n *     else{\n *       // if the texture vertexAttribArray has been previously\n *       // disabled, then it needs to be re-enabled\n *       gl.enableVertexAttribArray(shaderProgram.textureCoordAttribute);\n *       gl.bindBuffer(gl.ARRAY_BUFFER, mesh.textureBuffer);\n *       gl.vertexAttribPointer(shaderProgram.textureCoordAttribute, mesh.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);\n *     }\n *\n *     gl.bindBuffer(gl.ARRAY_BUFFER, mesh.normalBuffer);\n *     gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, mesh.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);\n *\n *     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, model.mesh.indexBuffer);\n *     gl.drawElements(gl.TRIANGLES, model.mesh.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);\n */\nfunction initMeshBuffers(gl, mesh) {\n    mesh.normalBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertexNormals, 3);\n    mesh.textureBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.textures, mesh.textureStride);\n    mesh.vertexBuffer = _buildBuffer(gl, gl.ARRAY_BUFFER, mesh.vertices, 3);\n    mesh.indexBuffer = _buildBuffer(gl, gl.ELEMENT_ARRAY_BUFFER, mesh.indices, 1);\n    return mesh;\n}\nfunction deleteMeshBuffers(gl, mesh) {\n    gl.deleteBuffer(mesh.normalBuffer);\n    gl.deleteBuffer(mesh.textureBuffer);\n    gl.deleteBuffer(mesh.vertexBuffer);\n    gl.deleteBuffer(mesh.indexBuffer);\n}\n\n\n//# sourceURL=webpack://OBJ/./src/utils.ts?')},0:
+/*!****************************!*\
+  !*** multi ./src/index.ts ***!
+  \****************************/
+/*! no static exports found */function(module,exports,__webpack_require__){eval('module.exports = __webpack_require__(/*! /home/aaron/google_drive/projects/webgl-obj-loader/src/index.ts */"./src/index.ts");\n\n\n//# sourceURL=webpack://OBJ/multi_./src/index.ts?')}})}));
+},{}],"src/common/mesh-utils.ts":[function(require,module,exports) {
+"use strict";
+
+var __spreadArrays = this && this.__spreadArrays || function () {
+  for (var s = 0, i = 0, il = arguments.length; i < il; i++) {
+    s += arguments[i].length;
+  }
+
+  for (var r = Array(s), k = 0, i = 0; i < il; i++) {
+    for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++) {
+      r[k] = a[j];
+    }
+  }
+
+  return r;
+};
+
+var __importDefault = this && this.__importDefault || function (mod) {
+  return mod && mod.__esModule ? mod : {
+    "default": mod
+  };
+};
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  }
+  result["default"] = mod;
+  return result;
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var mesh_1 = __importDefault(require("./mesh"));
+
+var OBJ = __importStar(require("webgl-obj-loader")); // This file contain some helper classes to create simple meshes
+
+
+var BLACK = [0, 0, 0, 255];
+var RED = [255, 0, 0, 255];
+var GREEN = [0, 255, 0, 255];
+var BLUE = [0, 0, 255, 255];
+var YELLOW = [255, 255, 0, 255];
+var MAGENTA = [255, 0, 255, 255];
+var CYAN = [0, 255, 255, 255];
+var WHITE = [255, 255, 255, 255];
+
+function createEmptyMesh(gl) {
+  return new mesh_1.default(gl, [{
+    attributeLocation: 0,
+    buffer: "positions",
+    size: 3,
+    type: gl.FLOAT,
+    normalized: false,
+    stride: 0,
+    offset: 0
+  }, {
+    attributeLocation: 1,
+    buffer: "colors",
+    size: 4,
+    type: gl.UNSIGNED_BYTE,
+    normalized: true,
+    stride: 0,
+    offset: 0
+  }, {
+    attributeLocation: 2,
+    buffer: "texcoords",
+    size: 2,
+    type: gl.FLOAT,
+    normalized: false,
+    stride: 0,
+    offset: 0
+  }, {
+    attributeLocation: 3,
+    buffer: "normals",
+    size: 3,
+    type: gl.FLOAT,
+    normalized: false,
+    stride: 0,
+    offset: 0
+  }]);
+}
+
+function Plane(gl, texCoords) {
+  if (texCoords === void 0) {
+    texCoords = {
+      min: [0, 0],
+      max: [1, 1]
+    };
+  }
+
+  var mesh = createEmptyMesh(gl);
+  mesh.setBufferData("positions", new Float32Array([-1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, -1.0, -1.0, 0.0, -1.0]), gl.STATIC_DRAW);
+  mesh.setBufferData("colors", new Uint8Array(__spreadArrays(WHITE, WHITE, WHITE, WHITE)), gl.STATIC_DRAW);
+  mesh.setBufferData("texcoords", new Float32Array([texCoords.min[0], texCoords.min[1], texCoords.max[0], texCoords.min[1], texCoords.max[0], texCoords.max[1], texCoords.min[0], texCoords.max[1]]), gl.STATIC_DRAW);
+  mesh.setBufferData("normals", new Float32Array([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0]), gl.STATIC_DRAW);
+  mesh.setElementsData(new Uint32Array([0, 1, 2, 2, 3, 0]), gl.STATIC_DRAW);
+  return mesh;
+}
+
+exports.Plane = Plane;
+
+function SubdividedPlane(gl, resolution, texCoords) {
+  if (resolution === void 0) {
+    resolution = 1;
+  }
+
+  if (texCoords === void 0) {
+    texCoords = {
+      min: [0, 0],
+      max: [1, 1]
+    };
+  }
+
+  if (typeof resolution === "number") resolution = [resolution, resolution];
+  resolution = resolution.map(function (x) {
+    return x >= 1 ? x : 1;
+  });
+  var positions = [],
+      colors = [],
+      texcoords = [],
+      normals = [],
+      indices = [];
+
+  for (var i = 0; i <= resolution[0]; i++) {
+    for (var j = 0; j <= resolution[1]; j++) {
+      positions.push(2 * i / resolution[0] - 1, 0, 1 - 2 * j / resolution[1]);
+      colors.push.apply(colors, WHITE);
+      texcoords.push(i / resolution[0] * (texCoords.max[0] - texCoords.min[0]) + texCoords.min[0], j / resolution[1] * (texCoords.max[1] - texCoords.min[1]) + texCoords.min[1]);
+      normals.push(0, 1, 0);
+    }
+  }
+
+  for (var i = 0; i < resolution[0]; i++) {
+    for (var j = 0; j < resolution[1]; j++) {
+      var index = j + i * (resolution[1] + 1);
+      indices.push(index, index + resolution[1] + 1, index + resolution[1] + 2);
+      indices.push(index + resolution[1] + 2, index + 1, index);
+    }
+  }
+
+  var mesh = createEmptyMesh(gl);
+  mesh.setBufferData("positions", new Float32Array(positions), gl.STATIC_DRAW);
+  mesh.setBufferData("colors", new Uint8Array(colors), gl.STATIC_DRAW);
+  mesh.setBufferData("texcoords", new Float32Array(texcoords), gl.STATIC_DRAW);
+  mesh.setBufferData("normals", new Float32Array(normals), gl.STATIC_DRAW);
+  mesh.setElementsData(new Uint32Array(indices), gl.STATIC_DRAW);
+  return mesh;
+}
+
+exports.SubdividedPlane = SubdividedPlane;
+
+function Cube(gl) {
+  var mesh = createEmptyMesh(gl);
+  mesh.setBufferData("positions", new Float32Array([//Upper Face
+  -1, 1, -1, -1, 1, 1, 1, 1, 1, 1, 1, -1, //Lower Face
+  -1, -1, -1, 1, -1, -1, 1, -1, 1, -1, -1, 1, //Right Face
+  1, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, //Left Face
+  -1, -1, -1, -1, -1, 1, -1, 1, 1, -1, 1, -1, //Front Face
+  -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1, //Back Face
+  -1, -1, -1, -1, 1, -1, 1, 1, -1, 1, -1, -1]), gl.STATIC_DRAW);
+  mesh.setBufferData("colors", new Uint8Array(__spreadArrays(WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE)), gl.STATIC_DRAW);
+  mesh.setBufferData("texcoords", new Float32Array([//Upper Face
+  0, 1, 0, 0, 1, 0, 1, 1, //Lower Face
+  0, 0, 1, 0, 1, 1, 0, 1, //Right Face
+  1, 0, 1, 1, 0, 1, 0, 0, //Left Face
+  0, 0, 1, 0, 1, 1, 0, 1, //Front Face
+  0, 0, 1, 0, 1, 1, 0, 1, //Back Face
+  1, 0, 1, 1, 0, 1, 0, 0]), gl.STATIC_DRAW);
+  mesh.setBufferData("normals", new Float32Array([//Upper Face
+  0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, //Lower Face
+  0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, //Right Face
+  1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, //Left Face
+  -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, //Front Face
+  0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, //Back Face
+  0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1]), gl.STATIC_DRAW);
+  mesh.setElementsData(new Uint32Array([//Upper Face
+  0, 1, 2, 2, 3, 0, //Lower Face
+  4, 5, 6, 6, 7, 4, //Right Face
+  8, 9, 10, 10, 11, 8, //Left Face
+  12, 13, 14, 14, 15, 12, //Front Face
+  16, 17, 18, 18, 19, 16, //Back Face
+  20, 21, 22, 22, 23, 20]), gl.STATIC_DRAW);
+  return mesh;
+}
+
+exports.Cube = Cube;
+
+function Sphere(gl, resolution) {
+  if (resolution === void 0) {
+    resolution = 32;
+  }
+
+  if (typeof resolution === "number") resolution = [2 * resolution, resolution];
+  resolution = resolution.map(function (x) {
+    return x >= 1 ? x : 1;
+  });
+  var positions = [],
+      colors = [],
+      texcoords = [],
+      normals = [],
+      indices = [];
+
+  for (var i = 0; i <= resolution[0]; i++) {
+    var theta = i / resolution[0] * 2 * Math.PI;
+    var cos_theta = Math.cos(theta),
+        sin_theta = Math.sin(theta);
+
+    for (var j = 0; j <= resolution[1]; j++) {
+      var phi = (j / resolution[1] - 0.5) * Math.PI;
+      var cos_phi = Math.cos(phi),
+          sin_phi = Math.sin(phi);
+      var x = cos_theta * cos_phi,
+          y = sin_phi,
+          z = -sin_theta * cos_phi;
+      positions.push(x, y, z);
+      colors.push.apply(colors, WHITE);
+      texcoords.push(i / resolution[0], j / resolution[1]);
+      normals.push(x, y, z);
+    }
+  }
+
+  for (var i = 0; i < resolution[0]; i++) {
+    for (var j = 0; j < resolution[1]; j++) {
+      var index = j + i * (resolution[1] + 1);
+      indices.push(index, index + resolution[1] + 1, index + resolution[1] + 2);
+      indices.push(index + resolution[1] + 2, index + 1, index);
+    }
+  }
+
+  var mesh = createEmptyMesh(gl);
+  mesh.setBufferData("positions", new Float32Array(positions), gl.STATIC_DRAW);
+  mesh.setBufferData("colors", new Uint8Array(colors), gl.STATIC_DRAW);
+  mesh.setBufferData("texcoords", new Float32Array(texcoords), gl.STATIC_DRAW);
+  mesh.setBufferData("normals", new Float32Array(normals), gl.STATIC_DRAW);
+  mesh.setElementsData(new Uint32Array(indices), gl.STATIC_DRAW);
+  return mesh;
+}
+
+exports.Sphere = Sphere;
+
+function LoadOBJMesh(gl, data) {
+  var obj = new OBJ.Mesh(data);
+  var mesh = createEmptyMesh(gl);
+  mesh.setBufferData("positions", new Float32Array(obj.vertices), gl.STATIC_DRAW);
+  mesh.setBufferData("texcoords", new Float32Array(obj.textures), gl.STATIC_DRAW);
+  mesh.setBufferData("normals", new Float32Array(obj.vertexNormals), gl.STATIC_DRAW);
+  var colors = new Uint8Array(obj.vertices.length * 4 / 3);
+  colors.fill(255);
+  mesh.setBufferData("colors", colors, gl.STATIC_DRAW);
+  mesh.setElementsData(new Uint32Array(obj.indices), gl.STATIC_DRAW);
+  return mesh;
+}
+
+exports.LoadOBJMesh = LoadOBJMesh;
+},{"./mesh":"src/common/mesh.ts","webgl-obj-loader":"node_modules/webgl-obj-loader/dist/webgl-obj-loader.min.js"}],"src/common/camera.ts":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var gl_matrix_1 = require("gl-matrix"); // Just for organization, we will keep all of our camera data and functions in here
+
+
+var Camera =
+/** @class */
+function () {
+  function Camera() {
+    this.type = 'perspective';
+    this.position = gl_matrix_1.vec3.fromValues(0, 0, 0);
+    this.direction = gl_matrix_1.vec3.fromValues(0, 0, 1);
+    this.up = gl_matrix_1.vec3.fromValues(0, 1, 0);
+    this.perspectiveFoVy = Math.PI / 2;
+    this.orthographicHeight = 10;
+    this.aspectRatio = 1;
+    this.near = 0.01;
+    this.far = 1000;
+  }
+
+  Object.defineProperty(Camera.prototype, "ViewMatrix", {
+    get: function get() {
+      return gl_matrix_1.mat4.lookAt(gl_matrix_1.mat4.create(), this.position, gl_matrix_1.vec3.add(gl_matrix_1.vec3.create(), this.position, this.direction), this.up);
+    },
+    enumerable: true,
+    configurable: true
+  });
+  Object.defineProperty(Camera.prototype, "ProjectionMatrix", {
+    get: function get() {
+      if (this.type === 'orthographic') {
+        var halfH = this.orthographicHeight / 2;
+        var halfW = halfH * this.aspectRatio;
+        return gl_matrix_1.mat4.ortho(gl_matrix_1.mat4.create(), -halfW, halfW, -halfH, halfH, this.near, this.far);
+      } else {
+        return gl_matrix_1.mat4.perspective(gl_matrix_1.mat4.create(), this.perspectiveFoVy, this.aspectRatio, this.near, this.far);
+      }
+    },
+    enumerable: true,
+    configurable: true
+  });
+  Object.defineProperty(Camera.prototype, "ViewProjectionMatrix", {
+    get: function get() {
+      var V = this.ViewMatrix,
+          P = this.ProjectionMatrix;
+      return gl_matrix_1.mat4.mul(P, P, V);
+    },
+    enumerable: true,
+    configurable: true
+  });
+
+  Camera.prototype.setTarget = function (value) {
+    gl_matrix_1.vec3.sub(this.direction, value, this.position);
+  };
+
+  Object.defineProperty(Camera.prototype, "right", {
+    get: function get() {
+      var up = gl_matrix_1.vec3.normalize(gl_matrix_1.vec3.create(), this.up);
+      return gl_matrix_1.vec3.cross(up, this.direction, up);
+    },
+    enumerable: true,
+    configurable: true
+  });
+  return Camera;
+}();
+
+exports.default = Camera;
+},{"gl-matrix":"node_modules/gl-matrix/esm/index.js"}],"src/common/camera-controllers/fly-camera-controller.ts":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var gl_matrix_1 = require("gl-matrix");
+
+var ts_key_enum_1 = require("ts-key-enum"); // This is a controller to simulate a flying Camera
+// The controls are:
+// Hold Left-Mouse-Button and Drag to rotate camera
+// Hold Left-Mouse-Button + WASD to move and QE to go up or down
+// Mouse Wheel to zoom in or out 
+// Press T to toggle between Perspective and Orthographic
+
+
+var FlyCameraController =
+/** @class */
+function () {
+  function FlyCameraController(camera, input) {
+    this.yaw = 0;
+    this.pitch = 0;
+    this.yawSensitivity = 0.001;
+    this.pitchSensitivity = 0.001;
+    this.movementSensitivity = 0.001;
+    this.fastMovementSensitivity = 0.01;
+    this.camera = camera;
+    camera.up = gl_matrix_1.vec3.fromValues(0, 1, 0);
+    this.input = input;
+    var direction = camera.direction;
+    this.yaw = Math.atan2(direction[2], direction[0]);
+    this.pitch = Math.atan2(direction[1], gl_matrix_1.vec2.len([direction[0], direction[1]]));
+  }
+
+  FlyCameraController.prototype.update = function (deltaTime) {
+    if (this.input.isButtonJustDown(0)) {
+      this.input.requestPointerLock();
+    } else if (this.input.isButtonJustUp(0)) {
+      this.input.exitPointerLock();
+    }
+
+    if (this.input.isButtonDown(0)) {
+      var mouseDelta = this.input.MouseDelta;
+      this.yaw += mouseDelta[0] * this.yawSensitivity;
+      this.pitch += -mouseDelta[1] * this.pitchSensitivity;
+      this.pitch = Math.min(Math.PI / 2, Math.max(-Math.PI / 2, this.pitch));
+      this.camera.direction = gl_matrix_1.vec3.fromValues(Math.cos(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.sin(this.yaw) * Math.cos(this.pitch));
+      var movement = gl_matrix_1.vec3.create();
+      if (this.input.isKeyDown("w")) movement[2] += 1;
+      if (this.input.isKeyDown("s")) movement[2] -= 1;
+      if (this.input.isKeyDown("d")) movement[0] += 1;
+      if (this.input.isKeyDown("a")) movement[0] -= 1;
+      if (this.input.isKeyDown("q")) movement[1] += 1;
+      if (this.input.isKeyDown("e")) movement[1] -= 1;
+      gl_matrix_1.vec3.normalize(movement, movement);
+      var movementSensitivity = this.input.isKeyDown(ts_key_enum_1.Key.Shift) ? this.fastMovementSensitivity : this.movementSensitivity;
+      gl_matrix_1.vec3.scaleAndAdd(this.camera.position, this.camera.position, this.camera.direction, movement[2] * movementSensitivity * deltaTime);
+      gl_matrix_1.vec3.scaleAndAdd(this.camera.position, this.camera.position, this.camera.right, movement[0] * movementSensitivity * deltaTime);
+      gl_matrix_1.vec3.scaleAndAdd(this.camera.position, this.camera.position, this.camera.up, movement[1] * movementSensitivity * deltaTime);
+    }
+
+    if (this.input.isKeyJustDown("t")) {
+      if (this.camera.type === 'orthographic') this.camera.type = 'perspective';else this.camera.type = 'orthographic';
+    }
+
+    if (this.camera.type === 'perspective') {
+      this.camera.perspectiveFoVy -= this.input.WheelDelta[1] * 0.001;
+      this.camera.perspectiveFoVy = Math.min(Math.PI, Math.max(Math.PI / 8, this.camera.perspectiveFoVy));
+    } else if (this.camera.type === 'orthographic') {
+      this.camera.orthographicHeight -= this.input.WheelDelta[1] * 0.01;
+      this.camera.perspectiveFoVy = Math.max(0.001, this.camera.perspectiveFoVy);
+    }
+  };
+
+  return FlyCameraController;
+}();
+
+exports.default = FlyCameraController;
+},{"gl-matrix":"node_modules/gl-matrix/esm/index.js","ts-key-enum":"node_modules/ts-key-enum/dist/js/Key.enum.js"}],"node_modules/html-tags/html-tags.json":[function(require,module,exports) {
+module.exports = ["a", "abbr", "address", "area", "article", "aside", "audio", "b", "base", "bdi", "bdo", "blockquote", "body", "br", "button", "canvas", "caption", "cite", "code", "col", "colgroup", "data", "datalist", "dd", "del", "details", "dfn", "dialog", "div", "dl", "dt", "em", "embed", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header", "hgroup", "hr", "html", "i", "iframe", "img", "input", "ins", "kbd", "keygen", "label", "legend", "li", "link", "main", "map", "mark", "math", "menu", "menuitem", "meta", "meter", "nav", "noscript", "object", "ol", "optgroup", "option", "output", "p", "param", "picture", "pre", "progress", "q", "rb", "rp", "rt", "rtc", "ruby", "s", "samp", "script", "section", "select", "slot", "small", "source", "span", "strong", "style", "sub", "summary", "sup", "svg", "table", "tbody", "td", "template", "textarea", "tfoot", "th", "thead", "time", "title", "tr", "track", "u", "ul", "var", "video", "wbr"];
+},{}],"node_modules/html-tags/index.js":[function(require,module,exports) {
+'use strict';
+
+module.exports = require('./html-tags.json');
+},{"./html-tags.json":"node_modules/html-tags/html-tags.json"}],"node_modules/svg-tags/lib/svg-tags.json":[function(require,module,exports) {
+module.exports = [
+	"a",
+	"altGlyph",
+	"altGlyphDef",
+	"altGlyphItem",
+	"animate",
+	"animateColor",
+	"animateMotion",
+	"animateTransform",
+	"circle",
+	"clipPath",
+	"color-profile",
+	"cursor",
+	"defs",
+	"desc",
+	"ellipse",
+	"feBlend",
+	"feColorMatrix",
+	"feComponentTransfer",
+	"feComposite",
+	"feConvolveMatrix",
+	"feDiffuseLighting",
+	"feDisplacementMap",
+	"feDistantLight",
+	"feFlood",
+	"feFuncA",
+	"feFuncB",
+	"feFuncG",
+	"feFuncR",
+	"feGaussianBlur",
+	"feImage",
+	"feMerge",
+	"feMergeNode",
+	"feMorphology",
+	"feOffset",
+	"fePointLight",
+	"feSpecularLighting",
+	"feSpotLight",
+	"feTile",
+	"feTurbulence",
+	"filter",
+	"font",
+	"font-face",
+	"font-face-format",
+	"font-face-name",
+	"font-face-src",
+	"font-face-uri",
+	"foreignObject",
+	"g",
+	"glyph",
+	"glyphRef",
+	"hkern",
+	"image",
+	"line",
+	"linearGradient",
+	"marker",
+	"mask",
+	"metadata",
+	"missing-glyph",
+	"mpath",
+	"path",
+	"pattern",
+	"polygon",
+	"polyline",
+	"radialGradient",
+	"rect",
+	"script",
+	"set",
+	"stop",
+	"style",
+	"svg",
+	"switch",
+	"symbol",
+	"text",
+	"textPath",
+	"title",
+	"tref",
+	"tspan",
+	"use",
+	"view",
+	"vkern"
+];
+},{}],"node_modules/svg-tags/lib/index.js":[function(require,module,exports) {
+module.exports = require( './svg-tags.json' );
+},{"./svg-tags.json":"node_modules/svg-tags/lib/svg-tags.json"}],"node_modules/tsx-create-element/dist/es6/index.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.createElement = createElement;
+exports.mount = mount;
+exports.findElementByChildPositions = findElementByChildPositions;
+exports.focusActiveElement = focusActiveElement;
+exports.setActiveElement = setActiveElement;
+exports.getActiveElementInfo = getActiveElementInfo;
+
+var htmlTags = _interopRequireWildcard(require("html-tags"));
+
+var svgTags = _interopRequireWildcard(require("svg-tags"));
+
+function _getRequireWildcardCache() { if (typeof WeakMap !== "function") return null; var cache = new WeakMap(); _getRequireWildcardCache = function () { return cache; }; return cache; }
+
+function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
+
+/**
+ * Decamelizes a string with/without a custom separator (hyphen by default).
+ * from: https://ourcodeworld.com/articles/read/608/how-to-camelize-and-decamelize-strings-in-javascript
+ *
+ * @param str String in camelcase
+ * @param separator Separator for the new decamelized string.
+ */
+function decamelize(str, separator = '-') {
+  return str.replace(/([a-z\d])([A-Z])/g, '$1' + separator + '$2').replace(/([A-Z]+)([A-Z][a-z\d]+)/g, '$1' + separator + '$2').toLowerCase();
+}
+
+function createElement(tag, attrs, ...children) {
+  if (typeof tag === 'function') {
+    const fn = tag;
+    const props = attrs;
+    props.children = children;
+    return fn(props);
+  } else {
+    const ns = tagNamespace(tag);
+    const el = ns ? document.createElementNS(ns, tag) : document.createElement(tag);
+    const map = attrs;
+    let ref;
+
+    for (let name in map) {
+      if (name && map.hasOwnProperty(name)) {
+        let value = map[name];
+
+        if (name === 'className' && value !== void 0) {
+          setAttribute(el, ns, 'class', value.toString());
+        } else if (value === null || value === undefined) {
+          continue;
+        } else if (value === true) {
+          setAttribute(el, ns, name, name);
+        } else if (typeof value === 'function') {
+          if (name === 'ref') {
+            ref = value;
+          } else {
+            el[name.toLowerCase()] = value;
+          }
+        } else if (typeof value === 'object') {
+          setAttribute(el, ns, name, flatten(value));
+        } else {
+          setAttribute(el, ns, name, value.toString());
+        }
+      }
+    }
+
+    if (children && children.length > 0) {
+      appendChildren(el, children);
+    }
+
+    if (ref) {
+      ref(el);
+    }
+
+    return el;
+  }
+}
+
+function setAttribute(el, ns, name, value) {
+  if (ns) {
+    el.setAttributeNS(null, name, value);
+  } else {
+    el.setAttribute(name, value);
+  }
+}
+
+function flatten(o) {
+  const arr = [];
+
+  for (let prop in o) arr.push(`${decamelize(prop, '-')}:${o[prop]}`);
+
+  return arr.join(';');
+}
+
+function addChild(parentElement, child) {
+  if (child === null || child === undefined || typeof child === "boolean") {
+    return;
+  } else if (Array.isArray(child)) {
+    appendChildren(parentElement, child);
+  } else if (isElement(child)) {
+    parentElement.appendChild(child);
+  } else {
+    parentElement.appendChild(document.createTextNode(child.toString()));
+  }
+}
+
+function appendChildren(parentElement, children) {
+  children.forEach(child => addChild(parentElement, child));
+}
+
+function isElement(el) {
+  //nodeType cannot be zero https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeType
+  return !!el.nodeType;
+}
+
+function mount(element, container) {
+  container.innerHTML = '';
+
+  if (element) {
+    addChild(container, element);
+  }
+}
+
+function findElementByChildPositions(childPositions, container) {
+  let element = container || document.body;
+  let childPosition;
+
+  while (element && childPositions.length) {
+    childPosition = childPositions.shift();
+    element = element.children.item(childPosition);
+  }
+
+  if (element) {
+    return element;
+  }
+
+  ;
+}
+
+function focusActiveElement(element, activeElementInfo) {
+  element.focus();
+  element.scrollTop = activeElementInfo.scrollTop;
+  const input = element;
+
+  if (input.setSelectionRange && activeElementInfo && activeElementInfo.selectionStart != null && activeElementInfo.selectionEnd != null) {
+    input.setSelectionRange(activeElementInfo.selectionStart, activeElementInfo.selectionEnd, activeElementInfo.selectionDirection);
+  }
+}
+
+function setActiveElement(activeElementInfo, container) {
+  if (activeElementInfo) {
+    const element = findElementByChildPositions(activeElementInfo.childPositions, container);
+
+    if (element) {
+      focusActiveElement(element, activeElementInfo);
+    }
+  }
+}
+
+function getActiveElementInfo(container) {
+  let element = document.activeElement;
+  const {
+    scrollTop,
+    selectionDirection,
+    selectionEnd,
+    selectionStart
+  } = element;
+  const activeElementInfo = {
+    childPositions: [],
+    scrollTop,
+    selectionDirection,
+    selectionEnd,
+    selectionStart
+  };
+
+  while (element && element !== document.body && element !== container) {
+    activeElementInfo.childPositions.unshift(getChildPosition(element));
+    element = element.parentElement;
+  }
+
+  if ((element === document.body || element === container) && activeElementInfo.childPositions.length) return activeElementInfo;
+}
+
+function getChildPosition(element) {
+  let childPosition = 0;
+
+  while (element = element.previousElementSibling) childPosition++;
+
+  return childPosition;
+}
+
+function tagNamespace(tag) {
+  //issue: this won't disambiguate certain tags which exist in both svg and html: <a>, <title> ...
+  if (tag === 'svg' || svgTags.default.indexOf(tag) >= 0 && !(htmlTags.default.indexOf(tag) >= 0)) {
+    return "http://www.w3.org/2000/svg";
+  }
+}
+},{"html-tags":"node_modules/html-tags/index.js","svg-tags":"node_modules/svg-tags/lib/index.js"}],"src/common/dom-utils.tsx":[function(require,module,exports) {
+"use strict";
+
+var __assign = this && this.__assign || function () {
+  __assign = Object.assign || function (t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+
+      for (var p in s) {
+        if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+      }
+    }
+
+    return t;
+  };
+
+  return __assign.apply(this, arguments);
+};
+
+var __rest = this && this.__rest || function (s, e) {
+  var t = {};
+
+  for (var p in s) {
+    if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
+  }
+
+  if (s != null && typeof Object.getOwnPropertySymbols === "function") for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+    if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i])) t[p[i]] = s[p[i]];
+  }
+  return t;
+};
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+
+var tsx_create_element_1 = require("tsx-create-element");
+
+var coordinates = ['x', 'y', 'z', 'w'];
+
+exports.Vector = function (props) {
+  var _a, _b;
+
+  var start = (_a = props.start, _a !== null && _a !== void 0 ? _a : 0);
+  var length = Math.min(4, (_b = props.length, _b !== null && _b !== void 0 ? _b : 4));
+  var end = Math.min(start + length, props.vector.length);
+  var components = [];
+
+  var _loop_1 = function _loop_1(i) {
+    components.push(tsx_create_element_1.createElement("label", {
+      className: "control-label"
+    }, coordinates[i - start]), tsx_create_element_1.createElement("input", {
+      type: "number",
+      step: "0.05",
+      value: props.vector[i],
+      onchange: function onchange(ev) {
+        props.vector[i] = Number.parseFloat(ev.target.value);
+      }
+    }));
+  };
+
+  for (var i = start; i < end; i++) {
+    _loop_1(i);
+  }
+
+  return tsx_create_element_1.createElement("span", null, components);
+};
+
+var color_coordinates = ['r', 'g', 'b', 'a'];
+
+exports.Color = function (props) {
+  var _a, _b;
+
+  var start = (_a = props.start, _a !== null && _a !== void 0 ? _a : 0);
+  var length = Math.min(4, (_b = props.length, _b !== null && _b !== void 0 ? _b : 4));
+  var end = Math.min(start + length, props.color.length);
+  var components = [];
+
+  var _loop_2 = function _loop_2(i) {
+    components.push(tsx_create_element_1.createElement("label", {
+      className: "control-label"
+    }, color_coordinates[i - start]), tsx_create_element_1.createElement("input", {
+      type: "number",
+      step: "0.05",
+      value: props.color[i],
+      onchange: function onchange(ev) {
+        props.color[i] = Number.parseFloat(ev.target.value);
+      }
+    }));
+  };
+
+  for (var i = start; i < end; i++) {
+    _loop_2(i);
+  }
+
+  return tsx_create_element_1.createElement("span", null, components);
+};
+
+exports.Selector = function (props) {
+  var value = props.value,
+      options = props.options,
+      _onchange = props.onchange,
+      children = props.children,
+      rest = __rest(props, ["value", "options", "onchange", "children"]);
+
+  value = value !== null && value !== void 0 ? value : Object.keys(props.options)[0];
+  value = value.toString();
+  var optionsElements = [];
+
+  for (var key in props.options) {
+    if (key === value) optionsElements.push(tsx_create_element_1.createElement("option", {
+      value: key,
+      selected: true
+    }, props.options[key]));else optionsElements.push(tsx_create_element_1.createElement("option", {
+      value: key
+    }, props.options[key]));
+  }
+
+  return tsx_create_element_1.createElement("select", __assign({
+    onchange: function onchange(ev) {
+      var e = ev.target;
+
+      _onchange(e.options[e.selectedIndex].value);
+    }
+  }, rest), optionsElements);
+};
+
+exports.CheckBox = function (props) {
+  var value = props.value,
+      _onchange2 = props.onchange,
+      children = props.children,
+      rest = __rest(props, ["value", "onchange", "children"]);
+
+  return tsx_create_element_1.createElement("input", {
+    type: "checkbox",
+    checked: value ? true : undefined,
+    onchange: function onchange(ev) {
+      _onchange2(ev.target.checked);
+    }
+  });
+};
+},{"tsx-create-element":"node_modules/tsx-create-element/dist/es6/index.js"}],"src/scenes/in-game.tsx":[function(require,module,exports) {
 "use strict";
 
 var __extends = this && this.__extends || function () {
@@ -11788,10 +10651,36 @@ var __extends = this && this.__extends || function () {
   };
 }();
 
+var __assign = this && this.__assign || function () {
+  __assign = Object.assign || function (t) {
+    for (var s, i = 1, n = arguments.length; i < n; i++) {
+      s = arguments[i];
+
+      for (var p in s) {
+        if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
+      }
+    }
+
+    return t;
+  };
+
+  return __assign.apply(this, arguments);
+};
+
 var __importDefault = this && this.__importDefault || function (mod) {
   return mod && mod.__esModule ? mod : {
     "default": mod
   };
+};
+
+var __importStar = this && this.__importStar || function (mod) {
+  if (mod && mod.__esModule) return mod;
+  var result = {};
+  if (mod != null) for (var k in mod) {
+    if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+  }
+  result["default"] = mod;
+  return result;
 };
 
 Object.defineProperty(exports, "__esModule", {
@@ -11802,202 +10691,262 @@ var game_1 = require("../common/game");
 
 var shader_program_1 = __importDefault(require("../common/shader-program"));
 
-var gl_matrix_1 = require("gl-matrix"); // In this scene we will draw one colored rectangle that pulses, moves with the mouse and changes color with time
-// The goal of this scene is to learn about:
-// 1- How to send Uniform data (variables that have the same value across all vertices and pixels)
+var MeshUtils = __importStar(require("../common/mesh-utils"));
+
+var camera_1 = __importDefault(require("../common/camera"));
+
+var fly_camera_controller_1 = __importDefault(require("../common/camera-controllers/fly-camera-controller"));
+
+var gl_matrix_1 = require("gl-matrix");
+
+var dom_utils_1 = require("../common/dom-utils");
+
+var tsx_create_element_1 = require("tsx-create-element"); // In this scene we will draw one object with a cube map to emulate reflection and refraction. We will also draw a sky box
 
 
-var UniformScene =
+var CubemapScene =
 /** @class */
 function (_super) {
-  __extends(UniformScene, _super);
+  __extends(CubemapScene, _super);
 
-  function UniformScene() {
-    return _super !== null && _super.apply(this, arguments) || this;
+  function CubemapScene() {
+    var _this = _super !== null && _super.apply(this, arguments) || this;
+
+    _this.programs = {};
+    _this.meshes = {};
+    _this.textures = {};
+    _this.tint = [255, 255, 255];
+    _this.refraction = false;
+    _this.refractiveIndex = 1.0;
+    _this.drawSky = true;
+    return _this;
   }
 
-  UniformScene.prototype.load = function () {
-    var _a; // We will need a new pair of shaders that receives uniform variables
+  CubemapScene.prototype.load = function () {
+    var _a;
 
-
-    this.game.loader.load((_a = {}, _a["uniform.vert"] = {
-      url: 'shaders/uniform.vert',
+    this.game.loader.load(__assign((_a = {}, _a["texture-cube.vert"] = {
+      url: 'shaders/texture-cube.vert',
       type: 'text'
-    }, _a["uniform.frag"] = {
-      url: 'shaders/uniform.frag',
+    }, _a["texture-cube.frag"] = {
+      url: 'shaders/texture-cube.frag',
       type: 'text'
-    }, _a));
+    }, _a["sky-cube.vert"] = {
+      url: 'shaders/sky-cube.vert',
+      type: 'text'
+    }, _a["sky-cube.frag"] = {
+      url: 'shaders/sky-cube.frag',
+      type: 'text'
+    }, _a["suzanne"] = {
+      url: 'models/Suzanne/Suzanne.obj',
+      type: 'text'
+    }, _a), Object.fromEntries(CubemapScene.cubemapDirections.map(function (dir) {
+      return [dir, {
+        url: "images/Vasa/" + dir + ".jpg",
+        type: 'image'
+      }];
+    }))));
   };
 
-  UniformScene.prototype.start = function () {
-    this.program = new shader_program_1.default(this.gl);
-    this.program.attach(this.game.loader.resources["uniform.vert"], this.gl.VERTEX_SHADER);
-    this.program.attach(this.game.loader.resources["uniform.frag"], this.gl.FRAGMENT_SHADER);
-    this.program.link(); // Similar to getAttribLocation, we use getUniformLocation to get a uniform variable's location from its name
+  CubemapScene.prototype.start = function () {
+    this.programs['texture'] = new shader_program_1.default(this.gl);
+    this.programs['texture'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
+    this.programs['texture'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
+    this.programs['texture'].link();
+    this.programs['sky'] = new shader_program_1.default(this.gl);
+    this.programs['sky'].attach(this.game.loader.resources["sky-cube.vert"], this.gl.VERTEX_SHADER);
+    this.programs['sky'].attach(this.game.loader.resources["sky-cube.frag"], this.gl.FRAGMENT_SHADER);
+    this.programs['sky'].link();
+    this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']);
+    this.meshes['cube'] = MeshUtils.Cube(this.gl);
+    this.meshes['sphere'] = MeshUtils.Sphere(this.gl);
+    this.currentMesh = 'suzanne'; // These will be our 6 targets for loading the images to the texture
 
-    this.translationUniformLoc = this.gl.getUniformLocation(this.program.program, "translation");
-    this.timeUniformLoc = this.gl.getUniformLocation(this.program.program, "time"); // The remaining steps in "Start" are not any different compared to the Quad Scene
+    var target_directions = [this.gl.TEXTURE_CUBE_MAP_NEGATIVE_X, this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, this.gl.TEXTURE_CUBE_MAP_POSITIVE_X, this.gl.TEXTURE_CUBE_MAP_POSITIVE_Y, this.gl.TEXTURE_CUBE_MAP_POSITIVE_Z];
+    this.textures['environment'] = this.gl.createTexture();
+    this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']); // Here, we will bind the texture to TEXTURE_CUBE_MAP since it will be a cubemap
 
-    var positions = new Float32Array([-0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]);
-    var colors = new Uint8Array([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255, 255, 0, 255, 255]);
-    var elements = new Uint32Array([0, 1, 2, 2, 3, 0]);
-    this.VAO = this.gl.createVertexArray();
-    this.positionVBO = this.gl.createBuffer();
-    this.colorVBO = this.gl.createBuffer();
-    this.EBO = this.gl.createBuffer();
-    this.gl.bindVertexArray(this.VAO);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionVBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
-    var positionAttrib = this.gl.getAttribLocation(this.program.program, "position");
-    this.gl.enableVertexAttribArray(positionAttrib);
-    this.gl.vertexAttribPointer(positionAttrib, 3, this.gl.FLOAT, false, 0, 0);
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.colorVBO);
-    this.gl.bufferData(this.gl.ARRAY_BUFFER, colors, this.gl.STATIC_DRAW);
-    var colorAttrib = this.gl.getAttribLocation(this.program.program, "color");
-    this.gl.enableVertexAttribArray(colorAttrib);
-    this.gl.vertexAttribPointer(colorAttrib, 4, this.gl.UNSIGNED_BYTE, true, 0, 0);
-    this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.EBO);
-    this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, elements, this.gl.STATIC_DRAW);
-    this.gl.bindVertexArray(null);
-    this.gl.clearColor(0, 0, 0, 1);
-  };
+    this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
+    this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, false); // No need for UNPACK_FLIP_Y_WEBGL with cubemaps
 
-  UniformScene.prototype.draw = function (deltaTime) {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.gl.useProgram(this.program.program); // Before drawing, we need to update the data in the uniform variables
-    // First, we will send the time in seconds to the time uniform variable
-
-    this.gl.uniform1f(this.timeUniformLoc, performance.now() / 1000); // Here, I calculate the mouse position in NDC space (ranges from (-1,-1) to (1,1)) from the position in pixel coordinates (range from (0,0) to (width, height)) 
-
-    var translation = this.game.input.getMousePosition();
-    gl_matrix_1.vec2.div(translation, translation, [this.game.canvas.width, this.game.canvas.height]);
-    gl_matrix_1.vec2.add(translation, translation, [-0.5, -0.5]);
-    gl_matrix_1.vec2.mul(translation, translation, [2, -2]); // In pixel coordinate y points down, while in NDC y points up so I multiply the y by -1
-    // Second, I send the mouse translation to the translation uniform variable
-
-    this.gl.uniform2f(this.translationUniformLoc, translation[0], translation[1]); // Then, I will draw as usual
-
-    this.gl.bindVertexArray(this.VAO);
-    this.gl.drawElements(this.gl.TRIANGLES, 6, this.gl.UNSIGNED_INT, 0);
-    this.gl.bindVertexArray(null);
-  };
-
-  UniformScene.prototype.end = function () {
-    this.program.dispose();
-    this.program = null;
-    this.gl.deleteVertexArray(this.VAO);
-    this.gl.deleteBuffer(this.positionVBO);
-    this.gl.deleteBuffer(this.colorVBO);
-    this.gl.deleteBuffer(this.EBO);
-  };
-
-  return UniformScene;
-}(game_1.Scene);
-
-exports.default = UniformScene;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts","gl-matrix":"node_modules/gl-matrix/esm/index.js"}],"src/scenes/in-game.ts":[function(require,module,exports) {
-"use strict";
-
-var __extends = this && this.__extends || function () {
-  var _extendStatics = function extendStatics(d, b) {
-    _extendStatics = Object.setPrototypeOf || {
-      __proto__: []
-    } instanceof Array && function (d, b) {
-      d.__proto__ = b;
-    } || function (d, b) {
-      for (var p in b) {
-        if (b.hasOwnProperty(p)) d[p] = b[p];
-      }
-    };
-
-    return _extendStatics(d, b);
-  };
-
-  return function (d, b) {
-    _extendStatics(d, b);
-
-    function __() {
-      this.constructor = d;
+    for (var i = 0; i < 6; i++) {
+      // The only difference between the call here and with normal 2D textures, is that the target is one of the 6 cubemap faces, instead of TEXTURE_2D
+      this.gl.texImage2D(target_directions[i], 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources[CubemapScene.cubemapDirections[i]]);
     }
 
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-  };
-}();
+    this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP); // Then we generate the mipmaps
 
-var __importDefault = this && this.__importDefault || function (mod) {
-  return mod && mod.__esModule ? mod : {
-    "default": mod
-  };
-};
+    this.sampler = this.gl.createSampler(); // No need to specify wrapping since we will use directions instead of texture coordinates to sample from the texture.
 
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-
-var game_1 = require("../common/game");
-
-var shader_program_1 = __importDefault(require("../common/shader-program")); // In this scene we will draw some raytraced spheres
-// The goal of this scene is to learn about:
-// 1- The fact that we can use only 1 triangle, a simple vertex shader and a complex fragment shader to draw complex scenes
-// 2- How to draw triangles without sending vertex data to the GPU
-
-
-var RaytracingScene =
-/** @class */
-function (_super) {
-  __extends(RaytracingScene, _super);
-
-  function RaytracingScene() {
-    return _super !== null && _super.apply(this, arguments) || this;
-  }
-
-  RaytracingScene.prototype.load = function () {
-    var _a; // Load raytracing shaders
-
-
-    this.game.loader.load((_a = {}, _a["raytracing.vert"] = {
-      url: 'shaders/raytracing.vert',
-      type: 'text'
-    }, _a["raytracing.frag"] = {
-      url: 'shaders/raytracing.frag',
-      type: 'text'
-    }, _a));
-  };
-
-  RaytracingScene.prototype.start = function () {
-    this.program = new shader_program_1.default(this.gl);
-    this.program.attach(this.game.loader.resources["raytracing.vert"], this.gl.VERTEX_SHADER);
-    this.program.attach(this.game.loader.resources["raytracing.frag"], this.gl.FRAGMENT_SHADER);
-    this.program.link();
-    this.resolutionUniformLoc = this.gl.getUniformLocation(this.program.program, "iResolution");
-    this.timeUniformLoc = this.gl.getUniformLocation(this.program.program, "iTime"); // Notice that we have no Vertex Array Object, Vertex Buffer Object or even an Element Buffer Object
-
+    this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+    this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
+    this.camera = new camera_1.default();
+    this.camera.type = 'perspective';
+    this.camera.position = gl_matrix_1.vec3.fromValues(1.5, 1.5, 1.5);
+    this.camera.direction = gl_matrix_1.vec3.fromValues(-1, -1, -1);
+    this.camera.aspectRatio = this.gl.drawingBufferWidth / this.gl.drawingBufferHeight;
+    this.controller = new fly_camera_controller_1.default(this.camera, this.game.input);
+    this.controller.movementSensitivity = 0.01;
+    this.controller.fastMovementSensitivity = 0.05;
+    this.gl.enable(this.gl.CULL_FACE);
+    this.gl.cullFace(this.gl.BACK);
+    this.gl.frontFace(this.gl.CCW);
+    this.gl.enable(this.gl.DEPTH_TEST);
+    this.gl.depthFunc(this.gl.LEQUAL);
     this.gl.clearColor(0, 0, 0, 1);
+    this.setupControls();
   };
 
-  RaytracingScene.prototype.draw = function (deltaTime) {
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.gl.useProgram(this.program.program);
-    this.gl.uniform1f(this.timeUniformLoc, performance.now() / 1000);
-    this.gl.uniform2f(this.resolutionUniformLoc, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight); // We don't bind a VAO since we don't have or need one
-    // The draw commands send the vertex index to a builtin attribute called "gl_VertexID"
-    // So even if we don't have any other attributes or buffers, the vertex shader can still know which vertex we are drawing and can pick the right coordinates for it.
+  CubemapScene.prototype.draw = function (deltaTime) {
+    this.controller.update(deltaTime);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
+    this.programs['texture'].use();
+    this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
+    this.programs['texture'].setUniform3f("cam_position", this.camera.position);
+    var M = gl_matrix_1.mat4.create();
+    gl_matrix_1.mat4.rotateY(M, M, performance.now() / 1000);
+    this.programs['texture'].setUniformMatrix4fv("M", false, M); // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
 
-    this.gl.drawArrays(this.gl.TRIANGLES, 0, 3);
+    this.programs['texture'].setUniformMatrix4fv("M_it", true, gl_matrix_1.mat4.invert(gl_matrix_1.mat4.create(), M));
+    this.programs['texture'].setUniform4f("tint", [this.tint[0] / 255, this.tint[1] / 255, this.tint[2] / 255, 1]);
+    this.programs['texture'].setUniform1f('refraction', this.refraction ? 1 : 0);
+    this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
+    this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
+    this.gl.bindSampler(0, this.sampler);
+
+    if (this.drawSky) {
+      this.gl.cullFace(this.gl.FRONT);
+      this.gl.depthMask(false);
+      this.programs['sky'].use();
+      this.programs['sky'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
+      this.programs['sky'].setUniform3f("cam_position", this.camera.position);
+      var skyMat = gl_matrix_1.mat4.create();
+      gl_matrix_1.mat4.translate(skyMat, skyMat, this.camera.position);
+      this.programs['sky'].setUniformMatrix4fv("M", false, skyMat);
+      this.programs['sky'].setUniform4f("tint", [1, 1, 1, 1]);
+      this.gl.activeTexture(this.gl.TEXTURE0);
+      this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
+      this.programs['sky'].setUniform1i('cube_texture_sampler', 0);
+      this.gl.bindSampler(0, this.sampler);
+      this.meshes['cube'].draw(this.gl.TRIANGLES);
+      this.gl.cullFace(this.gl.BACK);
+      this.gl.depthMask(true);
+    }
   };
 
-  RaytracingScene.prototype.end = function () {
-    this.program.dispose();
-    this.program = null;
+  CubemapScene.prototype.end = function () {
+    for (var key in this.programs) {
+      this.programs[key].dispose();
+    }
+
+    this.programs = {};
+
+    for (var key in this.meshes) {
+      this.meshes[key].dispose();
+    }
+
+    this.meshes = {};
+
+    for (var key in this.textures) {
+      this.gl.deleteTexture(this.textures[key]);
+    }
+
+    this.textures = {};
+    this.gl.deleteSampler(this.sampler);
+    this.clearControls();
+  }; /////////////////////////////////////////////////////////
+  ////// ADD CONTROL TO THE WEBPAGE (NOT IMPORTNANT) //////
+  /////////////////////////////////////////////////////////
+
+
+  CubemapScene.prototype.setupControls = function () {
+    var _this = this;
+
+    var controls = document.querySelector('#controls');
+
+    var RGBToHex = function RGBToHex(rgb) {
+      var arraybuffer = new ArrayBuffer(4);
+      var dv = new DataView(arraybuffer);
+      dv.setUint8(3, 0);
+      dv.setUint8(2, rgb[0]);
+      dv.setUint8(1, rgb[1]);
+      dv.setUint8(0, rgb[2]);
+      return '#' + dv.getUint32(0, true).toString(16);
+    };
+
+    var HexToRGB = function HexToRGB(hex) {
+      var arraybuffer = new ArrayBuffer(4);
+      var dv = new DataView(arraybuffer);
+      dv.setUint32(0, Number.parseInt(hex.slice(1), 16), true);
+      return [dv.getUint8(2), dv.getUint8(1), dv.getUint8(0)];
+    };
+
+    controls.appendChild(tsx_create_element_1.createElement("div", null, tsx_create_element_1.createElement("div", {
+      className: "control-row"
+    }, tsx_create_element_1.createElement("label", {
+      className: "control-label"
+    }, "Model:"), tsx_create_element_1.createElement(dom_utils_1.Selector, {
+      options: Object.fromEntries(Object.keys(this.meshes).map(function (x) {
+        return [x, x];
+      })),
+      value: this.currentMesh,
+      onchange: function onchange(v) {
+        _this.currentMesh = v;
+      }
+    })), tsx_create_element_1.createElement("div", {
+      className: "control-row"
+    }, tsx_create_element_1.createElement("label", {
+      className: "control-label"
+    }, "Tint:"), tsx_create_element_1.createElement("input", {
+      type: "color",
+      value: RGBToHex(this.tint),
+      onchange: function onchange(ev) {
+        _this.tint = HexToRGB(ev.target.value);
+      }
+    })), tsx_create_element_1.createElement("div", {
+      className: "control-row"
+    }, tsx_create_element_1.createElement("input", {
+      type: "checkbox",
+      checked: this.refraction ? true : undefined,
+      onchange: function onchange(ev) {
+        _this.refraction = ev.target.checked;
+      }
+    }), tsx_create_element_1.createElement("label", {
+      className: "control-label"
+    }, "Refractive Index:"), tsx_create_element_1.createElement("input", {
+      type: "number",
+      value: this.refractiveIndex,
+      onchange: function onchange(ev) {
+        _this.refractiveIndex = Number.parseFloat(ev.target.value);
+      },
+      step: "0.1"
+    })), tsx_create_element_1.createElement("div", {
+      className: "control-row"
+    }, tsx_create_element_1.createElement("input", {
+      type: "checkbox",
+      checked: this.drawSky,
+      onchange: function onchange(ev) {
+        _this.drawSky = ev.target.checked;
+      }
+    }), tsx_create_element_1.createElement("label", {
+      className: "control-label"
+    }, "Draw Sky"))));
   };
 
-  return RaytracingScene;
+  CubemapScene.prototype.clearControls = function () {
+    var controls = document.querySelector('#controls');
+    controls.innerHTML = "";
+  }; // These are the 6 cubemap directions: -x, -y, -z, +x, +y, +z
+
+
+  CubemapScene.cubemapDirections = ['negz', 'negy', 'negx', 'posz', 'posy', 'posx'];
+  return CubemapScene;
 }(game_1.Scene);
 
-exports.default = RaytracingScene;
-},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts"}],"src/scenes/podium.ts":[function(require,module,exports) {
-
-},{}],"src/app.ts":[function(require,module,exports) {
+exports.default = CubemapScene;
+},{"../common/game":"src/common/game.ts","../common/shader-program":"src/common/shader-program.ts","../common/mesh-utils":"src/common/mesh-utils.ts","../common/camera":"src/common/camera.ts","../common/camera-controllers/fly-camera-controller":"src/common/camera-controllers/fly-camera-controller.ts","gl-matrix":"node_modules/gl-matrix/esm/index.js","../common/dom-utils":"src/common/dom-utils.tsx","tsx-create-element":"node_modules/tsx-create-element/dist/es6/index.js"}],"src/app.ts":[function(require,module,exports) {
 "use strict";
 
 var __importDefault = this && this.__importDefault || function (mod) {
@@ -12012,11 +10961,7 @@ Object.defineProperty(exports, "__esModule", {
 
 var game_1 = __importDefault(require("./common/game"));
 
-var start_menu_1 = __importDefault(require("./scenes/start-menu"));
-
-var in_game_1 = __importDefault(require("./scenes/in-game"));
-
-var podium_1 = __importDefault(require("./scenes/podium")); // First thing we need is to get the canvas on which we draw our scenes
+var in_game_1 = __importDefault(require("./scenes/in-game")); // First thing we need is to get the canvas on which we draw our scenes
 
 
 var canvas = document.querySelector("#app");
@@ -12026,11 +10971,9 @@ canvas.height = window.innerHeight; // Then we create an instance of the game cl
 var game = new game_1.default(canvas); // Here we list all our scenes and our initial scene
 
 var scenes = {
-  "start-menu": start_menu_1.default,
-  "in-game": in_game_1.default,
-  "podium": podium_1.default
+  "in-game": in_game_1.default
 };
-var initialScene = "startMenu"; // Then we add those scenes to the game object and ask it to start the initial scene
+var initialScene = "in-game"; // Then we add those scenes to the game object and ask it to start the initial scene
 
 game.addScenes(scenes);
 game.startScene(initialScene); // Here we setup a selector element to switch scenes from the webpage
@@ -12048,7 +10991,7 @@ selector.value = initialScene;
 selector.addEventListener("change", function () {
   game.startScene(selector.value);
 });
-},{"./common/game":"src/common/game.ts","./scenes/start-menu":"src/scenes/start-menu.ts","./scenes/in-game":"src/scenes/in-game.ts","./scenes/podium":"src/scenes/podium.ts"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./common/game":"src/common/game.ts","./scenes/in-game":"src/scenes/in-game.tsx"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -12076,7 +11019,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36877" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "38911" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

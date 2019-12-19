@@ -30,7 +30,15 @@ export default class Game {
 
     constructor(canvas: HTMLCanvasElement){
         this.canvas = canvas;
-        this.gl = this.canvas.getContext("webgl2"); // This command loads the WebGL2 context which we will use to draw
+        this.gl = this.canvas.getContext("webgl2", {
+            preserveDrawingBuffer: true, // This will prevent the Browser from automatically clearing the frame buffer every frame
+            alpha: true, // this will tell the browser that we want an alpha component in our frame buffer
+            antialias: true, // this will tell the browser that we want antialiasing
+            depth: true, // this will tell the browser that we want a depth buffer
+            powerPreference: "high-performance",
+            premultipliedAlpha: false, // This can be used if the canvas are going to be blended with the rest of the webpage (transparency)
+            stencil: true // this will tell the browser that we want a stencil buffer
+        }); // This command loads the WebGL2 context which we will use to draw
         this.input = new Input(this.canvas);
         this.lastTick = performance.now();
         this.loop(performance.now()); // Start the game loop
