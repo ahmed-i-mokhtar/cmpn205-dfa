@@ -7,6 +7,8 @@ import FlyCameraController from '../common/camera-controllers/fly-camera-control
 import { vec3, mat4 } from 'gl-matrix';
 import { Vector, Selector } from '../common/dom-utils';
 import { createElement, StatelessProps, StatelessComponent } from 'tsx-create-element';
+import {Howl, Howler} from 'howler';
+
 
 // In this scene we will draw one object with a cube map to emulate reflection and refraction. We will also draw a sky box
 export default class CubemapScene extends Scene {
@@ -16,6 +18,10 @@ export default class CubemapScene extends Scene {
     meshes: {[name: string]: Mesh} = {};
     textures: {[name: string]: WebGLTexture} = {};
     sampler: WebGLSampler;
+    period: number = 0;
+    windSound: Howl;
+    flapSound: Howl;
+    themeSound: Howl;
 
     currentMesh: string;
     tint: [number, number, number] = [255, 255, 255];
@@ -27,18 +33,82 @@ export default class CubemapScene extends Scene {
     static readonly cubemapDirections = ['negz', 'negy', 'negx', 'posz', 'posy', 'posx']
 
     public load(): void {
+        let windDir ='sounds/wind.wav'
+        let flapDir = 'sounds/flapping.wav'
+        let themeDir = 'sounds/acdc-are-you-ready.mp3'
+
+        this.windSound = new Howl({
+            src: [windDir],
+            format: ['wav'],
+            loop: true,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+
+
+          this.flapSound = new Howl({
+            src: [flapDir],
+            format: ['wav'],
+            loop: true,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+          this.themeSound = new Howl({
+            src: [themeDir],
+            format: ['mp3'],
+            loop: true,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+        
+
         this.game.loader.load({
             ["texture-cube.vert"]:{url:'shaders/texture-cube.vert', type:'text'},
             ["texture-cube.frag"]:{url:'shaders/texture-cube.frag', type:'text'},
             ["sky-cube.vert"]:{url:'shaders/sky-cube.vert', type:'text'},
             ["sky-cube.frag"]:{url:'shaders/sky-cube.frag', type:'text'},
-            ["suzanne"]:{url:'models/Suzanne/Suzanne.obj', type:'text'},
+ 
+            
+            
+           // ["suzanne"]:{url:'models/Suzanne/Suzanne.obj', type:'text'},
             // We will load all the 6 textures to create cubemap
+            
             ...Object.fromEntries(CubemapScene.cubemapDirections.map(dir=>[dir, {url:`images/Vasa/${dir}.jpg`, type:'image'}]))
         });
     }
     
     public start(): void {
+
+        this.windSound.play();
+        this.flapSound.play();
+        this.themeSound.play();
         this.programs['texture'] = new ShaderProgram(this.gl);
         this.programs['texture'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
         this.programs['texture'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
@@ -50,10 +120,10 @@ export default class CubemapScene extends Scene {
         this.programs['sky'].attach(this.game.loader.resources["sky-cube.frag"], this.gl.FRAGMENT_SHADER);
         this.programs['sky'].link();
 
-        this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']);
         this.meshes['cube'] = MeshUtils.Cube(this.gl);
         this.meshes['sphere'] = MeshUtils.Sphere(this.gl);
-        this.currentMesh = 'suzanne';
+
+    
         
         // These will be our 6 targets for loading the images to the texture
         const target_directions = [
@@ -82,14 +152,13 @@ export default class CubemapScene extends Scene {
 
         this.camera = new Camera();
         this.camera.type = 'perspective';
-        this.camera.position = vec3.fromValues(1.5,1.5,1.5);
-        this.camera.direction = vec3.fromValues(-1,-1,-1);
+        this.camera.position = vec3.fromValues(2,2,2);
+        this.camera.direction = vec3.fromValues(1,1,1);
         this.camera.aspectRatio = this.gl.drawingBufferWidth/this.gl.drawingBufferHeight;
         
         this.controller = new FlyCameraController(this.camera, this.game.input);
         this.controller.movementSensitivity = 0.01;
         this.controller.fastMovementSensitivity = 0.05;
-
         this.gl.enable(this.gl.CULL_FACE);
         this.gl.cullFace(this.gl.BACK);
         this.gl.frontFace(this.gl.CCW);
@@ -100,11 +169,25 @@ export default class CubemapScene extends Scene {
         this.gl.clearColor(0,0,0,1);
 
         this.setupControls();
+
+        
     }
     
     public draw(deltaTime: number): void {
-        this.controller.update(deltaTime);
+        //this.controller.update(deltaTime);
 
+        this.period += deltaTime;
+        if(this.period > 150)
+        {
+        this.controller.yawSensitivity = Math.random() * 2 - 1;
+        this.period = 0
+        }
+
+        this.controller.yaw += 0.008* this.controller.yawSensitivity;
+        this.controller.pitch += -0.25* this.controller.pitchSensitivity;
+        this.controller.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, this.controller.pitch));
+        this.controller.yaw = Math.min(Math.PI/2, Math.max(-Math.PI/2, this.controller.yaw));
+        this.camera.direction = vec3.fromValues(Math.cos(this.controller.yaw)*Math.cos(this.controller.pitch), Math.sin(this.controller.pitch), Math.sin(this.controller.yaw)*Math.cos(this.controller.pitch))
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         
         this.programs['texture'].use();
@@ -163,9 +246,9 @@ export default class CubemapScene extends Scene {
         for(let key in this.programs)
             this.programs[key].dispose();
         this.programs = {};
-        for(let key in this.meshes)
-            this.meshes[key].dispose();
-        this.meshes = {};
+       // for(let key in this.meshes)
+        //    this.meshes[key].dispose();
+        //this.meshes = {};
         for(let key in this.textures)
             this.gl.deleteTexture(this.textures[key]);
         this.textures = {};
@@ -226,6 +309,4 @@ export default class CubemapScene extends Scene {
         const controls = document.querySelector('#controls');
         controls.innerHTML = "";
     }
-
-
 }

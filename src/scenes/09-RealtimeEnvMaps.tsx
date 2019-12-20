@@ -16,7 +16,6 @@ export default class RealtimeEnvironmentMapScene extends Scene {
     meshes: {[name: string]: Mesh} = {};
     textures: {[name: string]: WebGLTexture} = {};
     sampler: WebGLSampler;
-
     currentMesh: string;
     tint: [number, number, number] = [255, 255, 255];
     refraction: boolean = false;

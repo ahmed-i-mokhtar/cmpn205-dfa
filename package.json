@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "gl-matrix": "^3.1.0",
+    "howler": "^2.1.2",
     "lib": "^4.0.5",
     "ts-key-enum": "^2.0.0",
     "tsx-create-element": "^2.0.0",
