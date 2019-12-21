@@ -10041,6 +10041,42 @@ function LoadOBJMesh(gl, data) {
 }
 
 exports.LoadOBJMesh = LoadOBJMesh;
+
+function Cube1(gl) {
+  var mesh = createEmptyMesh(gl);
+  mesh.setBufferData("positions", new Float32Array([//Upper Face
+  -0.5, 0.0005, -0.5, -0.5, 0.0005, 0.5, 0.5, 0.0005, 0.5, 0.5, 0.0005, -0.5, //Lower Face
+  -0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, //Right Face
+  0.5, -0.5, -0.5, 0.5, 0.0005, -0.5, 0.5, 0.0005, 0.5, 0.5, -0.5, 0.5, //Left Face
+  -0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.0005, 0.5, -0.5, 0.0005, -0.5, //Front Face
+  -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.0005, 0.5, -0.5, 0.0005, 0.5, //Back Face
+  -0.5, -0.5, -0.5, -0.5, 0.0005, -0.5, 0.5, 0.0005, -0.5, 0.5, -0.5, -0.5]), gl.STATIC_DRAW);
+  mesh.setBufferData("colors", new Uint8Array(__spreadArrays(WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE)), gl.STATIC_DRAW);
+  mesh.setBufferData("texcoords", new Float32Array([//Upper Face
+  0, 1, 0, 0, 1, 0, 1, 1, //Lower Face
+  0, 0, 1, 0, 1, 1, 0, 1, //Right Face
+  1, 0, 1, 1, 0, 1, 0, 0, //Left Face
+  0, 0, 1, 0, 1, 1, 0, 1, //Front Face
+  0, 0, 1, 0, 1, 1, 0, 1, //Back Face
+  1, 0, 1, 1, 0, 1, 0, 0]), gl.STATIC_DRAW);
+  mesh.setBufferData("normals", new Float32Array([//Upper Face
+  0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, //Lower Face
+  0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, //Right Face
+  1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, //Left Face
+  -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, //Front Face
+  0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, //Back Face
+  0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1]), gl.STATIC_DRAW);
+  mesh.setElementsData(new Uint32Array([//Upper Face
+  0, 1, 2, 2, 3, 0, //Lower Face
+  4, 5, 6, 6, 7, 4, //Right Face
+  8, 9, 10, 10, 11, 8, //Left Face
+  12, 13, 14, 14, 15, 12, //Front Face
+  16, 17, 18, 18, 19, 16, //Back Face
+  20, 21, 22, 22, 23, 20]), gl.STATIC_DRAW);
+  return mesh;
+}
+
+exports.Cube1 = Cube1;
 },{"./mesh":"src/common/mesh.ts","webgl-obj-loader":"node_modules/webgl-obj-loader/dist/webgl-obj-loader.min.js"}],"src/common/camera.ts":[function(require,module,exports) {
 "use strict";
 
@@ -13880,14 +13916,23 @@ function (_super) {
     _this.textures = {};
     _this.period = 0;
     _this.PlyrPos = 25;
-    _this.PlyrAlt = 995;
+    _this.PlyrAlt = 1495;
     _this.PlyrOri = 1;
     _this.cameraPos = 1500;
     _this.cameraDir = -0.25;
     _this.tint = [255, 255, 255];
     _this.refraction = false;
     _this.refractiveIndex = 1.0;
-    _this.drawSky = true;
+    _this.drawSky = true; //Obstacles
+
+    _this.transdirx = {};
+    _this.transdiry = {};
+    _this.transdirz = {};
+    _this.scalex = {};
+    _this.scaley = {};
+    _this.scalez = {};
+    _this.anisotropic_filtering = 0; // This will hold the maximum number of samples that the anisotropic filtering is allowed to read. 1 is equivalent to isotropic filtering.
+
     return _this;
   }
 
@@ -14018,12 +14063,21 @@ function (_super) {
     }, _a["texture-cube.frag"] = {
       url: 'shaders/texture-cube.frag',
       type: 'text'
+    }, _a["texture.vert"] = {
+      url: 'shaders/texture.vert',
+      type: 'text'
+    }, _a["texture.frag"] = {
+      url: 'shaders/texture.frag',
+      type: 'text'
     }, _a["sky-cube.vert"] = {
       url: 'shaders/sky-cube.vert',
       type: 'text'
     }, _a["sky-cube.frag"] = {
       url: 'shaders/sky-cube.frag',
       type: 'text'
+    }, _a["moon-texture"] = {
+      url: 'shaders/sk3.jpg',
+      type: 'image'
     }, _a["suzanne"] = {
       url: 'models/Suzanne/man.obj',
       type: 'text'
@@ -14040,6 +14094,10 @@ function (_super) {
     this.flapSound.play();
     this.themeSound.play();
     this.themeSound.volume = 0.7;
+    this.programs['obstacle'] = new shader_program_1.default(this.gl);
+    this.programs['obstacle'].attach(this.game.loader.resources["texture.vert"], this.gl.VERTEX_SHADER);
+    this.programs['obstacle'].attach(this.game.loader.resources["texture.frag"], this.gl.FRAGMENT_SHADER);
+    this.programs['obstacle'].link();
     this.programs['texture'] = new shader_program_1.default(this.gl);
     this.programs['texture'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
     this.programs['texture'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
@@ -14048,9 +14106,9 @@ function (_super) {
     this.programs['sky'].attach(this.game.loader.resources["sky-cube.vert"], this.gl.VERTEX_SHADER);
     this.programs['sky'].attach(this.game.loader.resources["sky-cube.frag"], this.gl.FRAGMENT_SHADER);
     this.programs['sky'].link();
+    this.meshes['moon'] = MeshUtils.Cube(this.gl);
     this.meshes['cube'] = MeshUtils.Cube(this.gl);
-    this.meshes['sphere'] = MeshUtils.Sphere(this.gl); //this.meshes['para'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzzane'])
-
+    this.meshes['sphere'] = MeshUtils.Sphere(this.gl);
     this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']); // These will be our 6 targets for loading the images to the texture
 
     var target_directions = [this.gl.TEXTURE_CUBE_MAP_NEGATIVE_X, this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, this.gl.TEXTURE_CUBE_MAP_POSITIVE_X, this.gl.TEXTURE_CUBE_MAP_POSITIVE_Y, this.gl.TEXTURE_CUBE_MAP_POSITIVE_Z];
@@ -14071,6 +14129,27 @@ function (_super) {
 
     this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
     this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
+    /*Obstacles Texture*/
+
+    this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
+    this.textures['moon'] = this.gl.createTexture();
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['moon']);
+    this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources['moon-texture']);
+    this.gl.generateMipmap(this.gl.TEXTURE_2D); // Instead of using a sampler, we send the parameter directly to the texture here.
+    // While we prefer using samplers since it is a clear separation of responsibilities, anisotropic filtering is yet to be supported by sampler and this issue is still not closed on the WebGL github repository.  
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR); // To keep things organized, we will use two classes we create to handle the camera
+    // The camera class contains all the information about the camera
+    // The controller class controls the camera
+
+    this.anisotropy_ext = this.gl.getExtension('EXT_texture_filter_anisotropic'); // The device does not support anisotropic fltering, the extension will be null. So we need to check before using it.
+    // if it is supported, we will set our default filtering samples to the maximum value allowed by the device.
+
+    if (this.anisotropy_ext) this.anisotropic_filtering = this.gl.getParameter(this.anisotropy_ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
     this.camera = new camera_1.default();
     this.camera.type = 'perspective';
     this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0);
@@ -14087,10 +14166,59 @@ function (_super) {
     this.gl.clearColor(0, 0, 0, 1);
     this.setupControls();
     this.intOri = this.PlyrOri * this.controller.yaw;
+    this.transdirx[0] = this.randomInt(0, 80);
+    this.transdiry[0] = 1460;
+    this.transdirz[0] = 50 - this.transdirx[0];
+    this.scalex[0] = this.randomInt(5, 10);
+    this.scaley[0] = this.randomInt(3, 5);
+    this.scalez[0] = this.randomInt(5, 10);
+
+    for (var i = 1; i < 200; i++) {
+      this.transdirx[i] = this.randomInt(-20, 50);
+      this.transdiry[i] = this.randomInt(0, 1450);
+      this.transdirz[i] = 50 - this.transdirx[i];
+      this.scalex[i] = this.randomInt(2, 5);
+      this.scaley[i] = this.randomInt(2, 3);
+      this.scalez[i] = this.randomInt(2, 5);
+    }
+  };
+
+  CubemapScene.prototype.randomInt = function (min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  };
+
+  CubemapScene.prototype.checkCollision = function (plyrPos) {
+    for (var i = 0; i < 200; i++) {
+      if (plyrPos[0] < this.transdirx[i] + this.scalex[i] && plyrPos[0] > this.transdirx[i] - this.scalex[i]) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i]) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] && plyrPos[2] > this.transdirz[i] - this.scalez[i]) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  CubemapScene.prototype.onRight = function (plyrPos) {
+    for (var i = 0; i < 200; i++) {
+      if (plyrPos[0] < this.transdirx[i] + this.scalex[i] + 2 && plyrPos[0] > this.transdirx[i] - this.scalex[i] - 2) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i] - 5) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] + 2 && plyrPos[2] > this.transdirz[i] - this.scalez[i] - 2) if (plyrPos[0] - this.transdirx[i] - this.scalex[i] + 2 > plyrPos[2] - this.transdirz[i] + this.scalez[i] - 2) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  CubemapScene.prototype.onLeft = function (plyrPos) {
+    for (var i = 0; i < 200; i++) {
+      if (plyrPos[0] < this.transdirx[i] + this.scalex[i] + 2 && plyrPos[0] > this.transdirx[i] - this.scalex[i] - 2) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i] - 5) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] + 2 && plyrPos[2] > this.transdirz[i] - this.scalez[i] - 2) if (plyrPos[0] - this.transdirx[i] - this.scalex[i] + 2 < plyrPos[2] - this.transdirz[i] + this.scalez[i] - 2) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   CubemapScene.prototype.draw = function (deltaTime) {
-    //this.controller.update(deltaTime);
+    this.controller.update(deltaTime);
     this.period += deltaTime;
 
     if (this.period > 100) {
@@ -14103,42 +14231,49 @@ function (_super) {
     this.controller.pitch += 0.001 * this.controller.pitchSensitivity;
     this.controller.yaw = Math.min(Math.PI / 2, Math.max(-Math.PI / 2, this.controller.yaw));
     this.cameraDir -= 0.000008333;
-    this.camera.direction = gl_matrix_1.vec3.fromValues(Math.cos(this.controller.yaw) * Math.cos(this.controller.pitch), this.cameraDir + Math.sin(this.controller.pitch), Math.sin(this.controller.yaw) * Math.cos(this.controller.pitch)); //console.log(this.game.input.isKeyDown("w"))
-
+    this.camera.direction = gl_matrix_1.vec3.fromValues(Math.cos(this.controller.yaw) * Math.cos(this.controller.pitch), this.cameraDir + Math.sin(this.controller.pitch), Math.sin(this.controller.yaw) * Math.cos(this.controller.pitch));
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
     this.programs['texture'].use();
     this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
     this.programs['texture'].setUniform3f("cam_position", this.camera.position);
-    this.cameraPos -= 0.05;
-    this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0);
-    console.log(this.camera.position[1]);
+    this.cameraPos -= 0.05 + performance.now() / 950000;
+    this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0); //console.log(this.camera.position[1])
+
     var M = gl_matrix_1.mat4.create();
     var zmp = 50 - this.PlyrPos;
-    var tvec = gl_matrix_1.vec3.fromValues(this.PlyrPos, this.PlyrAlt, zmp);
-    var scal = gl_matrix_1.vec3.fromValues(1.5, 1.5, 1.5);
-    console.log('x: ', this.camera.direction[0]);
-    console.log('z: ', this.camera.direction[2]);
+    var tvec = gl_matrix_1.vec3.fromValues(this.PlyrPos, this.PlyrAlt, zmp); //console.log("Player Position: ", tvec);
+    //let scal = vec3.fromValues(1.5,1.5,1.5)
+
     if (this.PlyrPos > 50) this.PlyrPos = 50;
-    if (this.PlyrPos < 5) this.PlyrPos = 5;
-    this.PlyrAlt -= 0.033333333333333;
-    gl_matrix_1.mat4.scale(M, M, scal);
+    if (this.PlyrPos < -20) this.PlyrPos = -20;
+
+    if (!this.checkCollision(tvec)) {
+      this.PlyrAlt -= 0.055 + performance.now() / 1000000;
+    }
+
+    if (this.PlyrAlt <= 0) this.PlyrAlt = 0; //mat4.scale(M,M,scal)
+
     gl_matrix_1.mat4.translate(M, M, tvec);
     gl_matrix_1.mat4.rotateY(M, M, 9 / 7 * Math.PI);
     gl_matrix_1.mat4.rotateZ(M, M, this.PlyrOri - 1);
 
     if (this.game.input.isKeyDown("a")) // Go Left
       {
-        this.PlyrPos += 0.2;
-        if (this.PlyrOri < 1.3) this.PlyrOri += 0.015;
+        if (!this.onLeft(tvec)) {
+          this.PlyrPos += 0.2;
+          if (this.PlyrOri < 1.3) this.PlyrOri += 0.015;
+        }
       }
 
     if (this.game.input.isKeyDown("d")) // Go Right
       {
-        this.PlyrPos -= 0.2;
-        if (this.PlyrOri > 0.7) this.PlyrOri -= 0.015;
-      }
+        if (!this.onRight(tvec)) {
+          this.PlyrPos -= 0.2;
+          if (this.PlyrOri > 0.7) this.PlyrOri -= 0.015;
+        }
+      } //console.log("Ori:", this.PlyrOri)
 
-    console.log("Ori:", this.PlyrOri);
+
     if (this.PlyrOri > 1) this.PlyrOri -= 0.005;else if (this.PlyrOri < 1) this.PlyrOri += 0.005;
     this.programs['texture'].setUniformMatrix4fv("M", false, M); // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
 
@@ -14151,9 +14286,9 @@ function (_super) {
     this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
     this.gl.bindSampler(0, this.sampler);
     this.currentMesh = 'suzanne';
-    this.meshes['suzanne'].draw(this.gl.TRIANGLES);
-    console.log(this.camera.position[1]);
-    console.log('Player Altitude: ', this.PlyrAlt); //Game Ending
+    this.meshes['suzanne'].draw(this.gl.TRIANGLES); //console.log(this.camera.position[1])
+    //console.log('Player Altitude: ', this.PlyrAlt)
+    //Game Ending
 
     if (this.camera.position[1] <= 0) {
       console.log("Reached Ground");
@@ -14177,6 +14312,34 @@ function (_super) {
       this.meshes['cube'].draw(this.gl.TRIANGLES);
       this.gl.cullFace(this.gl.BACK);
       this.gl.depthMask(true);
+    } //Obstacles Draw
+
+
+    this.programs['obstacle'].use();
+
+    for (var i = 0; i < 200; i++) {
+      var tveco = gl_matrix_1.vec3.fromValues(this.transdirx[i], this.transdiry[i], this.transdirz[i]); //Need to be randomized
+
+      var sveco = gl_matrix_1.vec3.fromValues(this.scalex[i], this.scaley[i], this.scalez[i]); //Need to be randomized
+
+      var rotAngle = 0;
+      var rveco = gl_matrix_1.quat.fromValues(0, 0, 0, Math.cos(rotAngle / 2));
+      var Mo = gl_matrix_1.mat4.create();
+      var diff = gl_matrix_1.mat4.create();
+      gl_matrix_1.mat4.fromRotationTranslationScale(Mo, rveco, tveco, sveco);
+      var VPo = this.camera.ViewProjectionMatrix; // We get the VPo matrix from our camera class
+
+      if (gl_matrix_1.mat4.equals(M, Mo)) console.log("Hit");
+      var MVPo = gl_matrix_1.mat4.create();
+      gl_matrix_1.mat4.mul(MVPo, VPo, Mo);
+      this.programs['obstacle'].setUniformMatrix4fv("MVP", false, MVPo);
+      this.programs['obstacle'].setUniform4f("tint", [1, 1, 1, 1]);
+      this.gl.activeTexture(this.gl.TEXTURE0);
+      this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['moon']);
+      this.programs['obstacle'].setUniform1i('texture_sampler', 0); // If anisotropic filtering is supported, we send the parameter to the texture paramters.
+
+      if (this.anisotropy_ext) this.gl.texParameterf(this.gl.TEXTURE_2D, this.anisotropy_ext.TEXTURE_MAX_ANISOTROPY_EXT, this.anisotropic_filtering);
+      this.meshes['moon'].draw(this.gl.TRIANGLES);
     }
   };
 

@@ -256,3 +256,133 @@ export function LoadOBJMesh(gl: WebGL2RenderingContext, data: string){
     mesh.setElementsData(new Uint32Array(obj.indices), gl.STATIC_DRAW);
     return mesh;
 }
+
+export function Cube1(gl: WebGL2RenderingContext): Mesh {
+    let mesh = createEmptyMesh(gl);
+    mesh.setBufferData("positions", new Float32Array([
+       //Upper Face
+       -0.5,  0.0005, -0.5,
+       -0.5,  0.0005,  0.5,
+        0.5,  0.0005,  0.5,
+        0.5,  0.0005, -0.5,
+       //Lower Face
+       -0.5, -0.5, -0.5,
+        0.5, -0.5, -0.5,
+        0.5, -0.5,  0.5,
+       -0.5, -0.5,  0.5,
+       //Right Face
+        0.5, -0.5,-0.5,
+        0.5,  0.0005, -0.5,
+        0.5,  0.0005,  0.5,
+        0.5, -0.5,  0.5,
+       //Left Face
+       -0.5, -0.5, -0.5,
+       -0.5, -0.5,  0.5,
+       -0.5,  0.0005,  0.5,
+       -0.5,  0.0005, -0.5,
+       //Front Face
+       -0.5, -0.5,  0.5,
+        0.5, -0.5,  0.5,
+        0.5,  0.0005, 0.5,
+       -0.5,  0.0005,  0.5,
+       //Back Face
+       -0.5, -0.5, -0.5,
+       -0.5,  0.0005, -0.5,
+        0.5, 0.0005,-0.5,
+        0.5, -0.5, -0.5
+
+    ]), gl.STATIC_DRAW);
+    mesh.setBufferData("colors", new Uint8Array([
+        //Upper Face
+        ...WHITE, ...WHITE, ...WHITE, ...WHITE,
+        //Lower Face
+        ...WHITE, ...WHITE, ...WHITE, ...WHITE,
+        //Right Face
+        ...WHITE, ...WHITE, ...WHITE, ...WHITE,
+        //Left Face
+        ...WHITE, ...WHITE, ...WHITE, ...WHITE,
+        //Front Face
+        ...WHITE, ...WHITE, ...WHITE, ...WHITE,
+        //Back Face
+        ...WHITE, ...WHITE, ...WHITE, ...WHITE,
+    ]), gl.STATIC_DRAW);
+    mesh.setBufferData("texcoords", new Float32Array([
+        //Upper Face
+        0, 1,
+        0, 0,
+        1, 0,
+        1, 1,
+        //Lower Face
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+        //Right Face
+        1, 0,
+        1, 1,
+        0, 1,
+        0, 0,
+        //Left Face
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+        //Front Face
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 1,
+        //Back Face
+        1, 0,
+        1, 1,
+        0, 1,
+        0, 0
+    ]), gl.STATIC_DRAW);
+    mesh.setBufferData("normals", new Float32Array([
+        //Upper Face
+        0, 1, 0,
+        0, 1, 0,
+        0, 1, 0,
+        0, 1, 0,
+        //Lower Face
+        0, -1, 0,
+        0, -1, 0,
+        0, -1, 0,
+        0, -1, 0,
+        //Right Face
+        1, 0, 0,
+        1, 0, 0,
+        1, 0, 0,
+        1, 0, 0,
+        //Left Face
+        -1, 0, 0,
+        -1, 0, 0,
+        -1, 0, 0,
+        -1, 0, 0,
+        //Front Face
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+        0, 0, 1,
+        //Back Face
+        0, 0, -1,
+        0, 0, -1,
+        0, 0, -1,
+        0, 0, -1
+    ]), gl.STATIC_DRAW);
+    mesh.setElementsData(new Uint32Array([
+        //Upper Face
+        0, 1, 2, 2, 3, 0,
+        //Lower Face
+        4, 5, 6, 6, 7, 4,
+        //Right Face
+        8, 9, 10, 10, 11, 8,
+        //Left Face
+        12, 13, 14, 14, 15, 12,
+        //Front Face
+        16, 17, 18, 18, 19, 16,
+        //Back Face
+        20, 21, 22, 22, 23, 20, 
+    ]), gl.STATIC_DRAW);
+    return mesh;
+}
