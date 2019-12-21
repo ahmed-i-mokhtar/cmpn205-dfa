@@ -4,95 +4,126 @@ import Mesh from '../common/mesh';
 import * as MeshUtils from '../common/mesh-utils';
 import Camera from '../common/camera';
 import FlyCameraController from '../common/camera-controllers/fly-camera-controller';
-import { vec3, mat4, quat } from 'gl-matrix';
+import { vec3, mat4 } from 'gl-matrix';
 import { Vector, Selector } from '../common/dom-utils';
 import { createElement, StatelessProps, StatelessComponent } from 'tsx-create-element';
+import {Howl, Howler} from 'howler';
 
-// In this scene we will draw a scene and use framebuffers on a cube map to emulate reflection and refraction.
-export default class RealtimeEnvironmentMapScene extends Scene {
+
+// In this scene we will draw one object with a cube map to emulate reflection and refraction. We will also draw a sky box
+export default class CubemapScene extends Scene {
     programs: {[name: string]: ShaderProgram} = {};
     camera: Camera;
     controller: FlyCameraController;
     meshes: {[name: string]: Mesh} = {};
     textures: {[name: string]: WebGLTexture} = {};
     sampler: WebGLSampler;
+    period: number = 0;
+    windSound: Howl;
+    flapSound: Howl;
+    themeSound: Howl;
+
     currentMesh: string;
     tint: [number, number, number] = [255, 255, 255];
     refraction: boolean = false;
     refractiveIndex: number = 1.0;
+    drawSky: boolean = true;
 
-    objectPosition: vec3 = vec3.fromValues(0, 1, -10);
-    objectRotation: vec3 = vec3.fromValues(0, 0, 0);
-    objectScale: vec3 = vec3.fromValues(1, 1, 1);
-
-    frames: {[name: string]:{
-        frameBuffer: WebGLFramebuffer,
-        camera: Camera,
-        target: number
-    }} = {};
-
-    readonly CUBEMAP_SIZE = 256;
     // These are the 6 cubemap directions: -x, -y, -z, +x, +y, +z
-    static readonly cubemapDirections = ['negx', 'negy', 'negz', 'posx', 'posy', 'posz']
+    static readonly cubemapDirections = ['negz', 'negy', 'negx', 'posz', 'posy', 'posx']
 
     public load(): void {
+        let windDir ='sounds/wind.wav'
+        let flapDir = 'sounds/flapping.wav'
+        let themeDir = 'sounds/acdc-are-you-ready.mp3'
+
+        this.windSound = new Howl({
+            src: [windDir],
+            format: ['wav'],
+            loop: true,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+
+
+          this.flapSound = new Howl({
+            src: [flapDir],
+            format: ['wav'],
+            loop: true,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+          this.themeSound = new Howl({
+            src: [themeDir],
+            format: ['mp3'],
+            loop: true,
+            volume: 0.5,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+        
+
         this.game.loader.load({
             ["texture-cube.vert"]:{url:'shaders/texture-cube.vert', type:'text'},
             ["texture-cube.frag"]:{url:'shaders/texture-cube.frag', type:'text'},
-            ["texture.vert"]:{url:'shaders/texture.vert', type:'text'},
-            ["texture.frag"]:{url:'shaders/texture.frag', type:'text'},
-            ["house-model"]:{url:'models/House/House.obj', type:'text'},
-            ["house-texture"]:{url:'models/House/House.jpeg', type:'image'},
-            ["moon-texture"]:{url:'images/moon.jpg', type:'image'},
-            ["suzanne"]:{url:'models/Suzanne/Suzanne.obj', type:'text'},
+            ["sky-cube.vert"]:{url:'shaders/sky-cube.vert', type:'text'},
+            ["sky-cube.frag"]:{url:'shaders/sky-cube.frag', type:'text'},
+            ["suzanne"]:{url:'models/Suzanne/man.obj', type:'text'},
+            // We will load all the 6 textures to create cubemap
+            
+            ...Object.fromEntries(CubemapScene.cubemapDirections.map(dir=>[dir, {url:`images/Vasa/${dir}.jpg`, type:'image'}]))
         });
     }
     
     public start(): void {
-        this.programs['texture-cube'] = new ShaderProgram(this.gl);
-        this.programs['texture-cube'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
-        this.programs['texture-cube'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
-        this.programs['texture-cube'].link();
 
+        this.windSound.play();
+        this.flapSound.play();
+        this.themeSound.play();
+        this.themeSound.volume = 0.6;
         this.programs['texture'] = new ShaderProgram(this.gl);
-        this.programs['texture'].attach(this.game.loader.resources["texture.vert"], this.gl.VERTEX_SHADER);
-        this.programs['texture'].attach(this.game.loader.resources["texture.frag"], this.gl.FRAGMENT_SHADER);
+        this.programs['texture'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
+        this.programs['texture'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
         this.programs['texture'].link();
 
-        this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']);
-        this.meshes['cube'] = MeshUtils.Cube(this.gl);
-        this.meshes['moon'] = MeshUtils.Sphere(this.gl);
-        this.meshes['ground'] = MeshUtils.Plane(this.gl, {min:[0,0], max:[20,20]});
-        this.meshes['house'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources["house-model"]);
-        this.currentMesh = 'suzanne';
+        
+        this.programs['sky'] = new ShaderProgram(this.gl);
+        this.programs['sky'].attach(this.game.loader.resources["sky-cube.vert"], this.gl.VERTEX_SHADER);
+        this.programs['sky'].attach(this.game.loader.resources["sky-cube.frag"], this.gl.FRAGMENT_SHADER);
+        this.programs['sky'].link();
 
-        this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
-        
-        this.textures['moon'] = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['moon']);
-        this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
-        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources['moon-texture']);
-        this.gl.generateMipmap(this.gl.TEXTURE_2D);
-        
-        this.textures['ground'] = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['ground']);
-        const C0 = [26, 26, 16], C1 = [255, 255, 255];
-        const W = 1024, H = 1024, cW = 256, cH = 256;
-        let data = Array(W*H*3);
-        for(let j = 0; j < H; j++){
-            for(let i = 0; i < W; i++){
-                data[i + j*W] = (Math.floor(i/cW) + Math.floor(j/cH))%2 == 0 ? C0 : C1;
-            }
-        }
-        this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 1);
-        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGB, W, H, 0, this.gl.RGB, this.gl.UNSIGNED_BYTE, new Uint8Array(data.flat()));
-        this.gl.generateMipmap(this.gl.TEXTURE_2D);
-        
-        this.textures['house'] = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['house']);
-        this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
-        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources['house-texture']);
-        this.gl.generateMipmap(this.gl.TEXTURE_2D);
+        this.meshes['cube'] = MeshUtils.Cube(this.gl);
+        this.meshes['sphere'] = MeshUtils.Sphere(this.gl);
+        //this.meshes['para'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzzane'])
+
+        this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']);
         
         // These will be our 6 targets for loading the images to the texture
         const target_directions = [
@@ -102,74 +133,32 @@ export default class RealtimeEnvironmentMapScene extends Scene {
             this.gl.TEXTURE_CUBE_MAP_POSITIVE_X,
             this.gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
             this.gl.TEXTURE_CUBE_MAP_POSITIVE_Z
-        ];
+        ]
 
-        const cameraDirections = [
-            [-1,  0,  0],
-            [ 0, -1,  0],
-            [ 0,  0, -1],
-            [ 1,  0,  0],
-            [ 0,  1,  0],
-            [ 0,  0,  1]
-        ];
-
-        const cameraUps = [
-            [ 0, -1,  0],
-            [ 0,  0, -1],
-            [ 0, -1,  0],
-            [ 0, -1,  0],
-            [ 0,  0, -1],
-            [ 0, -1,  0]
-        ];
-
-        const miplevels = Math.ceil(Math.log2(this.CUBEMAP_SIZE));
-        
         this.textures['environment'] = this.gl.createTexture();
         this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']); // Here, we will bind the texture to TEXTURE_CUBE_MAP since it will be a cubemap
-        // we only allocate the face storage
-        this.gl.texStorage2D(this.gl.TEXTURE_CUBE_MAP, miplevels, this.gl.RGBA8, this.CUBEMAP_SIZE, this.CUBEMAP_SIZE);
-        // this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP); // Then we generate the mipmaps
-
-        this.textures['environment-depth'] = this.gl.createTexture();
-        this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment-depth']); // Here, we will bind the texture to TEXTURE_CUBE_MAP since it will be a cubemap
-        this.gl.texStorage2D(this.gl.TEXTURE_CUBE_MAP, 1, this.gl.DEPTH_COMPONENT16, this.CUBEMAP_SIZE, this.CUBEMAP_SIZE);
-
+        this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
+        this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, false); // No need for UNPACK_FLIP_Y_WEBGL with cubemaps
         for(let i = 0; i < 6; i++){
-            const direction = RealtimeEnvironmentMapScene.cubemapDirections[i];
-            
-            let camera = new Camera();
-            camera.direction = vec3.clone(cameraDirections[i]);
-            camera.up = vec3.clone(cameraUps[i]);
-            camera.perspectiveFoVy = Math.PI/2;
-            camera.aspectRatio = 1;
-            
-            let frameBuffer = this.gl.createFramebuffer();
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, frameBuffer);
-            this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, target_directions[i], this.textures['environment'], 0);
-            this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, target_directions[i], this.textures['environment-depth'], 0);
-
-            if(this.gl.checkFramebufferStatus(this.gl.FRAMEBUFFER) != this.gl.FRAMEBUFFER_COMPLETE)
-                console.error("Frame Buffer is Incomplete");
-
-            this.frames[direction] = {frameBuffer: frameBuffer, camera: camera, target: target_directions[i]};
+            // The only difference between the call here and with normal 2D textures, is that the target is one of the 6 cubemap faces, instead of TEXTURE_2D
+            this.gl.texImage2D(target_directions[i], 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources[CubemapScene.cubemapDirections[i]]);
         }
+        this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP); // Then we generate the mipmaps
 
         this.sampler = this.gl.createSampler();
-        this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
-        this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+        // No need to specify wrapping since we will use directions instead of texture coordinates to sample from the texture.
         this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
         this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
 
         this.camera = new Camera();
         this.camera.type = 'perspective';
-        this.camera.position = vec3.fromValues(0,2,0);
-        this.camera.direction = vec3.fromValues(-1,0,-2);
+        this.camera.position = vec3.fromValues(2,2,2);
+        this.camera.direction = vec3.fromValues(1,1,1);
         this.camera.aspectRatio = this.gl.drawingBufferWidth/this.gl.drawingBufferHeight;
         
         this.controller = new FlyCameraController(this.camera, this.game.input);
         this.controller.movementSensitivity = 0.01;
         this.controller.fastMovementSensitivity = 0.05;
-
         this.gl.enable(this.gl.CULL_FACE);
         this.gl.cullFace(this.gl.BACK);
         this.gl.frontFace(this.gl.CCW);
@@ -180,103 +169,84 @@ export default class RealtimeEnvironmentMapScene extends Scene {
         this.gl.clearColor(0,0,0,1);
 
         this.setupControls();
+
+        
     }
     
     public draw(deltaTime: number): void {
         this.controller.update(deltaTime);
-
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
-
-        for(let face in this.frames){
-            let frame = this.frames[face];
-            frame.camera.position = this.objectPosition;
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, frame.frameBuffer);
-            this.gl.viewport(0, 0, this.CUBEMAP_SIZE, this.CUBEMAP_SIZE);
-            this.drawScene(frame.camera.ViewProjectionMatrix);
+        console.log(this.game.input.isKeyDown("w"))
+        this.period += deltaTime;
+        if(this.period > 200)
+        {
+        this.controller.yawSensitivity = Math.random() * 2 - 1;
+        this.period = 0
         }
-        this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
-        this.gl.generateMipmap(this.gl.TEXTURE_CUBE_MAP);
+        this.controller.yaw += 0.001* this.controller.yawSensitivity;
+        this.controller.pitch += -0.25* this.controller.pitchSensitivity;
+        this.controller.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, this.controller.pitch));
+        this.controller.yaw = Math.min(Math.PI/2, Math.max(-Math.PI/2, this.controller.yaw));
+        this.camera.direction = vec3.fromValues(Math.cos(this.controller.yaw)*Math.cos(this.controller.pitch), Math.sin(this.controller.pitch), Math.sin(this.controller.yaw)*Math.cos(this.controller.pitch))
+        //console.log(this.game.input.isKeyDown("w"))
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         
+        this.programs['texture'].use();
 
-        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-        this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
+        this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
+        this.programs['texture'].setUniform3f("cam_position", this.camera.position);
 
-        this.drawScene(this.camera.ViewProjectionMatrix);
+        let M = mat4.create();
+        let tvec = vec3.fromValues(10,10-performance.now()/5000,10)
+        let scal = vec3.fromValues(1.5,1.5,1.5)
+        mat4.scale(M,M,scal)
+        mat4.translate(M, M, tvec)
+        //mat4.translate(M,M,this.camera.direction)
+        mat4.rotateY(M,M, 5/4*Math.PI)
+        mat4.rotateZ(M,M, -3*Math.PI/10+this.controller.yaw)
         
-        let program = this.programs['texture-cube'];
-        program.use();
-
-        program.setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
-        program.setUniform3f("cam_position", this.camera.position);
-
-        let M = mat4.fromRotationTranslationScale(
-            mat4.create(),
-            quat.fromEuler(quat.create(), this.objectRotation[0], this.objectRotation[1], this.objectRotation[2]),
-            this.objectPosition,
-            this.objectScale
-        );
-        
-        program.setUniformMatrix4fv("M", false, M);
+        this.programs['texture'].setUniformMatrix4fv("M", false, M);
         // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
-        program.setUniformMatrix4fv("M_it", true, mat4.invert(mat4.create(), M));
+        this.programs['texture'].setUniformMatrix4fv("M_it", true, mat4.invert(mat4.create(), M));
 
-        program.setUniform4f("tint", [this.tint[0]/255, this.tint[1]/255, this.tint[2]/255, 1]);
-        program.setUniform1f('refraction', this.refraction?1:0);
-        program.setUniform1f('refractive_index', this.refractiveIndex);
+        this.programs['texture'].setUniform4f("tint", [0/255, 0/255, 0/255, 1]);
+        this.programs['texture'].setUniform1f('refraction', this.refraction?1:0);
+        this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
 
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
-        program.setUniform1i('cube_texture_sampler', 0);
+        this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
+        
         this.gl.bindSampler(0, this.sampler);
 
-        this.meshes[this.currentMesh].draw(this.gl.TRIANGLES);
+        this.meshes['suzanne'].draw(this.gl.TRIANGLES);
+
+        if(this.drawSky){
+            this.gl.cullFace(this.gl.FRONT);
+            this.gl.depthMask(false);
+
+            this.programs['sky'].use();
+
+            this.programs['sky'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
+            this.programs['sky'].setUniform3f("cam_position", this.camera.position);
+
+            let skyMat = mat4.create();
+            mat4.translate(skyMat, skyMat, this.camera.position);
+            
+            this.programs['sky'].setUniformMatrix4fv("M", false, skyMat);
+
+            this.programs['sky'].setUniform4f("tint", [1, 1, 1, 1]);
+
+            this.gl.activeTexture(this.gl.TEXTURE0);
+            this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
+            this.programs['sky'].setUniform1i('cube_texture_sampler', 0);
+            this.gl.bindSampler(0, this.sampler);
+
+            this.meshes['cube'].draw(this.gl.TRIANGLES);
+            
+            this.gl.cullFace(this.gl.BACK);
+            this.gl.depthMask(true);
+        }
         
-    }
-
-    private drawScene(VP: mat4){
-        this.gl.clearColor(0.88,0.65,0.15,1);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT); // This will clear the textures attached to the framebuffer
-        
-        let program = this.programs['texture'];
-        program.use();
-
-        let groundMat = mat4.clone(VP);
-        mat4.scale(groundMat, groundMat, [100, 1, 100]);
-
-        program.setUniformMatrix4fv("MVP", false, groundMat);
-        program.setUniform4f("tint", [0.96, 0.91, 0.64, 1]);
-
-        this.gl.activeTexture(this.gl.TEXTURE0);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['ground']);
-        program.setUniform1i('texture_sampler', 0);
-        
-        this.meshes['ground'].draw(this.gl.TRIANGLES);
-
-        let houseMat = mat4.clone(VP);
-        mat4.translate(houseMat, houseMat, [-10, 0, -10]);
-
-        program.setUniformMatrix4fv("MVP", false, houseMat);
-        program.setUniform4f("tint", [1, 1, 1, 1]);
-
-        this.gl.activeTexture(this.gl.TEXTURE0);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['house']);
-        program.setUniform1i('texture_sampler', 0);
-        
-        this.meshes['house'].draw(this.gl.TRIANGLES);
-
-        let moonMat = mat4.clone(VP);
-        mat4.translate(moonMat, moonMat, [0, 10, -15]);
-        mat4.rotateZ(moonMat, moonMat, Math.PI/8);
-        mat4.rotateY(moonMat, moonMat, performance.now()/1000);
-
-        program.setUniformMatrix4fv("MVP", false, moonMat);
-        program.setUniform4f("tint", [1, 1, 1, 1]);
-
-        this.gl.activeTexture(this.gl.TEXTURE0);
-        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['moon']);
-        program.setUniform1i('texture_sampler', 0);
-        
-        this.meshes['moon'].draw(this.gl.TRIANGLES);
     }
     
     public end(): void {
@@ -333,16 +303,8 @@ export default class RealtimeEnvironmentMapScene extends Scene {
                     <input type="number" value={this.refractiveIndex} onchange={(ev: InputEvent)=>{this.refractiveIndex=Number.parseFloat((ev.target as HTMLInputElement).value)}} step="0.1"/>
                 </div>
                 <div className="control-row">
-                    <label className="control-label">Object Position</label>
-                    <Vector vector={this.objectPosition}/>    
-                </div>
-                <div className="control-row">
-                    <label className="control-label">Object Rotation</label>
-                    <Vector vector={this.objectRotation}/> 
-                </div>
-                <div className="control-row">
-                    <label className="control-label">Object Scale</label>
-                    <Vector vector={this.objectScale}/> 
+                    <input type="checkbox" checked={this.drawSky} onchange={(ev: InputEvent)=>{this.drawSky = ((ev.target as HTMLInputElement).checked)}}/>
+                    <label className="control-label">Draw Sky</label>
                 </div>
             </div>
             
@@ -354,6 +316,4 @@ export default class RealtimeEnvironmentMapScene extends Scene {
         const controls = document.querySelector('#controls');
         controls.innerHTML = "";
     }
-
-
 }

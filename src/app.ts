@@ -29,7 +29,7 @@ const initialScene = "in-game";
 // Then we add those scenes to the game object and ask it to start the initial scene
 game.addScenes(scenes);
 game.startScene(initialScene);
-
+/*
 // Here we setup a selector element to switch scenes from the webpage
 const selector: HTMLSelectElement = document.querySelector("#scenes");
 for(let name in scenes){
@@ -42,3 +42,4 @@ selector.value = initialScene;
 selector.addEventListener("change", ()=>{
     game.startScene(selector.value);
 });
+*/

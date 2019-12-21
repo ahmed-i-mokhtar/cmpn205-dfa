@@ -19,6 +19,13 @@ export default class CubemapScene extends Scene {
     textures: {[name: string]: WebGLTexture} = {};
     sampler: WebGLSampler;
     period: number = 0;
+    PlyrPos: number = 25;
+    PlyrAlt: number = 995;
+    intOri: number;
+    PlyrOri: number = 1;
+    cameraPos: number = 1500;
+    cameraDir: number = -0.25;   
+   
     windSound: Howl;
     flapSound: Howl;
     themeSound: Howl;
@@ -33,6 +40,7 @@ export default class CubemapScene extends Scene {
     static readonly cubemapDirections = ['negz', 'negy', 'negx', 'posz', 'posy', 'posx']
 
     public load(): void {
+        
         let windDir ='sounds/wind.wav'
         let flapDir = 'sounds/flapping.wav'
         let themeDir = 'sounds/acdc-are-you-ready.mp3'
@@ -75,6 +83,7 @@ export default class CubemapScene extends Scene {
             src: [themeDir],
             format: ['mp3'],
             loop: true,
+            volume: 0.5,
             onload: () => console.log('onload'),
             onloaderror: (e, msg) => console.log('onloaderror', e, msg),
             onplayerror: (e, msg) => console.log('onplayerror', e, msg),
@@ -94,10 +103,7 @@ export default class CubemapScene extends Scene {
             ["texture-cube.frag"]:{url:'shaders/texture-cube.frag', type:'text'},
             ["sky-cube.vert"]:{url:'shaders/sky-cube.vert', type:'text'},
             ["sky-cube.frag"]:{url:'shaders/sky-cube.frag', type:'text'},
- 
-            
-            
-           // ["suzanne"]:{url:'models/Suzanne/Suzanne.obj', type:'text'},
+            ["suzanne"]:{url:'models/Suzanne/man.obj', type:'text'},
             // We will load all the 6 textures to create cubemap
             
             ...Object.fromEntries(CubemapScene.cubemapDirections.map(dir=>[dir, {url:`images/Vasa/${dir}.jpg`, type:'image'}]))
@@ -105,10 +111,14 @@ export default class CubemapScene extends Scene {
     }
     
     public start(): void {
-
+        
         this.windSound.play();
         this.flapSound.play();
         this.themeSound.play();
+        this.themeSound.volume = 0.7;
+        
+
+       
         this.programs['texture'] = new ShaderProgram(this.gl);
         this.programs['texture'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
         this.programs['texture'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
@@ -122,8 +132,9 @@ export default class CubemapScene extends Scene {
 
         this.meshes['cube'] = MeshUtils.Cube(this.gl);
         this.meshes['sphere'] = MeshUtils.Sphere(this.gl);
+        //this.meshes['para'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzzane'])
 
-    
+        this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']);
         
         // These will be our 6 targets for loading the images to the texture
         const target_directions = [
@@ -152,8 +163,8 @@ export default class CubemapScene extends Scene {
 
         this.camera = new Camera();
         this.camera.type = 'perspective';
-        this.camera.position = vec3.fromValues(2,2,2);
-        this.camera.direction = vec3.fromValues(1,1,1);
+        this.camera.position = vec3.fromValues(0,this.cameraPos,0);
+        this.camera.direction = vec3.fromValues(1,this.cameraDir,1);
         this.camera.aspectRatio = this.gl.drawingBufferWidth/this.gl.drawingBufferHeight;
         
         this.controller = new FlyCameraController(this.camera, this.game.input);
@@ -169,25 +180,31 @@ export default class CubemapScene extends Scene {
         this.gl.clearColor(0,0,0,1);
 
         this.setupControls();
+        this.intOri = this.PlyrOri*this.controller.yaw;
 
         
     }
     
     public draw(deltaTime: number): void {
         //this.controller.update(deltaTime);
-
+      
         this.period += deltaTime;
-        if(this.period > 150)
+
+        
+        if(this.period > 100)
         {
         this.controller.yawSensitivity = Math.random() * 2 - 1;
+        this.controller.pitchSensitivity = Math.random() * 2 - 1;
         this.period = 0
         }
-
-        this.controller.yaw += 0.008* this.controller.yawSensitivity;
-        this.controller.pitch += -0.25* this.controller.pitchSensitivity;
-        this.controller.pitch = Math.min(Math.PI/2, Math.max(-Math.PI/2, this.controller.pitch));
+        this.controller.yaw += 0.001* this.controller.yawSensitivity;
+        this.controller.pitch += 0.001* this.controller.pitchSensitivity;
         this.controller.yaw = Math.min(Math.PI/2, Math.max(-Math.PI/2, this.controller.yaw));
-        this.camera.direction = vec3.fromValues(Math.cos(this.controller.yaw)*Math.cos(this.controller.pitch), Math.sin(this.controller.pitch), Math.sin(this.controller.yaw)*Math.cos(this.controller.pitch))
+        this.cameraDir -= 0.000008333;
+        this.camera.direction = vec3.fromValues(Math.cos(this.controller.yaw)*Math.cos(this.controller.pitch), this.cameraDir+Math.sin(this.controller.pitch), Math.sin(this.controller.yaw)*Math.cos(this.controller.pitch))
+        
+        
+        //console.log(this.game.input.isKeyDown("w"))
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
         
         this.programs['texture'].use();
@@ -195,23 +212,68 @@ export default class CubemapScene extends Scene {
         this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
         this.programs['texture'].setUniform3f("cam_position", this.camera.position);
 
+        this.cameraPos-=0.05;
+        this.camera.position = vec3.fromValues(0,this.cameraPos,0); 
+        console.log(this.camera.position[1])
         let M = mat4.create();
-        mat4.rotateY(M, M, performance.now()/1000);
+        let zmp = 50-this.PlyrPos;
+        let tvec = vec3.fromValues(this.PlyrPos,this.PlyrAlt,zmp)
+        let scal = vec3.fromValues(1.5,1.5,1.5)
+        console.log('x: ', this.camera.direction[0]);
+        console.log('z: ', this.camera.direction[2]);
+        if(this.PlyrPos > 50) this.PlyrPos = 50;
+        if(this.PlyrPos < 5) this.PlyrPos = 5;
+        this.PlyrAlt-=0.033333333333333;
+
+        mat4.scale(M,M,scal)
+        mat4.translate(M, M, tvec)
+        mat4.rotateY(M,M, 9/7*Math.PI)
+        mat4.rotateZ(M,M, this.PlyrOri-1)
+        if(this.game.input.isKeyDown("a")) // Go Left
+        {
+            this.PlyrPos+=0.2;
+            if(this.PlyrOri < 1.3)
+                this.PlyrOri+=0.015;
+        
+        }
+        if(this.game.input.isKeyDown("d")) // Go Right
+        {
+            this.PlyrPos-=0.2;
+            if(this.PlyrOri > 0.7)
+                this.PlyrOri-=0.015;   
+        }
+
+        console.log("Ori:", this.PlyrOri)
+        if(this.PlyrOri > 1) this.PlyrOri -= 0.005;
+        else if(this.PlyrOri <1) this.PlyrOri += 0.005;
         
         this.programs['texture'].setUniformMatrix4fv("M", false, M);
         // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
         this.programs['texture'].setUniformMatrix4fv("M_it", true, mat4.invert(mat4.create(), M));
 
-        this.programs['texture'].setUniform4f("tint", [this.tint[0]/255, this.tint[1]/255, this.tint[2]/255, 1]);
+        this.programs['texture'].setUniform4f("tint", [0/255, 0/255, 0/255, 1]);
         this.programs['texture'].setUniform1f('refraction', this.refraction?1:0);
         this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
 
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
         this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
+        
         this.gl.bindSampler(0, this.sampler);
+        this.currentMesh = 'suzanne'
 
-    
+        this.meshes['suzanne'].draw(this.gl.TRIANGLES);
+
+        console.log(this.camera.position[1])
+        console.log('Player Altitude: ', this.PlyrAlt)
+        //Game Ending
+        if(this.camera.position[1] <=0)
+        {
+            console.log("Reached Ground");
+            this.camera.position[1] =0;
+        }
+
+
 
         if(this.drawSky){
             this.gl.cullFace(this.gl.FRONT);
@@ -246,9 +308,9 @@ export default class CubemapScene extends Scene {
         for(let key in this.programs)
             this.programs[key].dispose();
         this.programs = {};
-       // for(let key in this.meshes)
-        //    this.meshes[key].dispose();
-        //this.meshes = {};
+        for(let key in this.meshes)
+            this.meshes[key].dispose();
+        this.meshes = {};
         for(let key in this.textures)
             this.gl.deleteTexture(this.textures[key]);
         this.textures = {};
@@ -309,4 +371,6 @@ export default class CubemapScene extends Scene {
         const controls = document.querySelector('#controls');
         controls.innerHTML = "";
     }
+
+
 }

@@ -13879,6 +13879,11 @@ function (_super) {
     _this.meshes = {};
     _this.textures = {};
     _this.period = 0;
+    _this.PlyrPos = 25;
+    _this.PlyrAlt = 995;
+    _this.PlyrOri = 1;
+    _this.cameraPos = 1500;
+    _this.cameraDir = -0.25;
     _this.tint = [255, 255, 255];
     _this.refraction = false;
     _this.refractiveIndex = 1.0;
@@ -13972,6 +13977,7 @@ function (_super) {
       src: [themeDir],
       format: ['mp3'],
       loop: true,
+      volume: 0.5,
       onload: function onload() {
         return console.log('onload');
       },
@@ -14018,6 +14024,9 @@ function (_super) {
     }, _a["sky-cube.frag"] = {
       url: 'shaders/sky-cube.frag',
       type: 'text'
+    }, _a["suzanne"] = {
+      url: 'models/Suzanne/man.obj',
+      type: 'text'
     }, _a), Object.fromEntries(CubemapScene.cubemapDirections.map(function (dir) {
       return [dir, {
         url: "images/Vasa/" + dir + ".jpg",
@@ -14030,6 +14039,7 @@ function (_super) {
     this.windSound.play();
     this.flapSound.play();
     this.themeSound.play();
+    this.themeSound.volume = 0.7;
     this.programs['texture'] = new shader_program_1.default(this.gl);
     this.programs['texture'].attach(this.game.loader.resources["texture-cube.vert"], this.gl.VERTEX_SHADER);
     this.programs['texture'].attach(this.game.loader.resources["texture-cube.frag"], this.gl.FRAGMENT_SHADER);
@@ -14039,7 +14049,9 @@ function (_super) {
     this.programs['sky'].attach(this.game.loader.resources["sky-cube.frag"], this.gl.FRAGMENT_SHADER);
     this.programs['sky'].link();
     this.meshes['cube'] = MeshUtils.Cube(this.gl);
-    this.meshes['sphere'] = MeshUtils.Sphere(this.gl); // These will be our 6 targets for loading the images to the texture
+    this.meshes['sphere'] = MeshUtils.Sphere(this.gl); //this.meshes['para'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzzane'])
+
+    this.meshes['suzanne'] = MeshUtils.LoadOBJMesh(this.gl, this.game.loader.resources['suzanne']); // These will be our 6 targets for loading the images to the texture
 
     var target_directions = [this.gl.TEXTURE_CUBE_MAP_NEGATIVE_X, this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, this.gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, this.gl.TEXTURE_CUBE_MAP_POSITIVE_X, this.gl.TEXTURE_CUBE_MAP_POSITIVE_Y, this.gl.TEXTURE_CUBE_MAP_POSITIVE_Z];
     this.textures['environment'] = this.gl.createTexture();
@@ -14061,8 +14073,8 @@ function (_super) {
     this.gl.samplerParameteri(this.sampler, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
     this.camera = new camera_1.default();
     this.camera.type = 'perspective';
-    this.camera.position = gl_matrix_1.vec3.fromValues(2, 2, 2);
-    this.camera.direction = gl_matrix_1.vec3.fromValues(1, 1, 1);
+    this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0);
+    this.camera.direction = gl_matrix_1.vec3.fromValues(1, this.cameraDir, 1);
     this.camera.aspectRatio = this.gl.drawingBufferWidth / this.gl.drawingBufferHeight;
     this.controller = new fly_camera_controller_1.default(this.camera, this.game.input);
     this.controller.movementSensitivity = 0.01;
@@ -14074,38 +14086,79 @@ function (_super) {
     this.gl.depthFunc(this.gl.LEQUAL);
     this.gl.clearColor(0, 0, 0, 1);
     this.setupControls();
+    this.intOri = this.PlyrOri * this.controller.yaw;
   };
 
   CubemapScene.prototype.draw = function (deltaTime) {
     //this.controller.update(deltaTime);
     this.period += deltaTime;
 
-    if (this.period > 150) {
+    if (this.period > 100) {
       this.controller.yawSensitivity = Math.random() * 2 - 1;
+      this.controller.pitchSensitivity = Math.random() * 2 - 1;
       this.period = 0;
     }
 
-    this.controller.yaw += 0.008 * this.controller.yawSensitivity;
-    this.controller.pitch += -0.25 * this.controller.pitchSensitivity;
-    this.controller.pitch = Math.min(Math.PI / 2, Math.max(-Math.PI / 2, this.controller.pitch));
+    this.controller.yaw += 0.001 * this.controller.yawSensitivity;
+    this.controller.pitch += 0.001 * this.controller.pitchSensitivity;
     this.controller.yaw = Math.min(Math.PI / 2, Math.max(-Math.PI / 2, this.controller.yaw));
-    this.camera.direction = gl_matrix_1.vec3.fromValues(Math.cos(this.controller.yaw) * Math.cos(this.controller.pitch), Math.sin(this.controller.pitch), Math.sin(this.controller.yaw) * Math.cos(this.controller.pitch));
+    this.cameraDir -= 0.000008333;
+    this.camera.direction = gl_matrix_1.vec3.fromValues(Math.cos(this.controller.yaw) * Math.cos(this.controller.pitch), this.cameraDir + Math.sin(this.controller.pitch), Math.sin(this.controller.yaw) * Math.cos(this.controller.pitch)); //console.log(this.game.input.isKeyDown("w"))
+
     this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);
     this.programs['texture'].use();
     this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
     this.programs['texture'].setUniform3f("cam_position", this.camera.position);
+    this.cameraPos -= 0.05;
+    this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0);
+    console.log(this.camera.position[1]);
     var M = gl_matrix_1.mat4.create();
-    gl_matrix_1.mat4.rotateY(M, M, performance.now() / 1000);
+    var zmp = 50 - this.PlyrPos;
+    var tvec = gl_matrix_1.vec3.fromValues(this.PlyrPos, this.PlyrAlt, zmp);
+    var scal = gl_matrix_1.vec3.fromValues(1.5, 1.5, 1.5);
+    console.log('x: ', this.camera.direction[0]);
+    console.log('z: ', this.camera.direction[2]);
+    if (this.PlyrPos > 50) this.PlyrPos = 50;
+    if (this.PlyrPos < 5) this.PlyrPos = 5;
+    this.PlyrAlt -= 0.033333333333333;
+    gl_matrix_1.mat4.scale(M, M, scal);
+    gl_matrix_1.mat4.translate(M, M, tvec);
+    gl_matrix_1.mat4.rotateY(M, M, 9 / 7 * Math.PI);
+    gl_matrix_1.mat4.rotateZ(M, M, this.PlyrOri - 1);
+
+    if (this.game.input.isKeyDown("a")) // Go Left
+      {
+        this.PlyrPos += 0.2;
+        if (this.PlyrOri < 1.3) this.PlyrOri += 0.015;
+      }
+
+    if (this.game.input.isKeyDown("d")) // Go Right
+      {
+        this.PlyrPos -= 0.2;
+        if (this.PlyrOri > 0.7) this.PlyrOri -= 0.015;
+      }
+
+    console.log("Ori:", this.PlyrOri);
+    if (this.PlyrOri > 1) this.PlyrOri -= 0.005;else if (this.PlyrOri < 1) this.PlyrOri += 0.005;
     this.programs['texture'].setUniformMatrix4fv("M", false, M); // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
 
     this.programs['texture'].setUniformMatrix4fv("M_it", true, gl_matrix_1.mat4.invert(gl_matrix_1.mat4.create(), M));
-    this.programs['texture'].setUniform4f("tint", [this.tint[0] / 255, this.tint[1] / 255, this.tint[2] / 255, 1]);
+    this.programs['texture'].setUniform4f("tint", [0 / 255, 0 / 255, 0 / 255, 1]);
     this.programs['texture'].setUniform1f('refraction', this.refraction ? 1 : 0);
     this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
     this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
     this.gl.bindSampler(0, this.sampler);
+    this.currentMesh = 'suzanne';
+    this.meshes['suzanne'].draw(this.gl.TRIANGLES);
+    console.log(this.camera.position[1]);
+    console.log('Player Altitude: ', this.PlyrAlt); //Game Ending
+
+    if (this.camera.position[1] <= 0) {
+      console.log("Reached Ground");
+      this.camera.position[1] = 0;
+    }
 
     if (this.drawSky) {
       this.gl.cullFace(this.gl.FRONT);
@@ -14132,9 +14185,13 @@ function (_super) {
       this.programs[key].dispose();
     }
 
-    this.programs = {}; // for(let key in this.meshes)
-    //    this.meshes[key].dispose();
-    //this.meshes = {};
+    this.programs = {};
+
+    for (var key in this.meshes) {
+      this.meshes[key].dispose();
+    }
+
+    this.meshes = {};
 
     for (var key in this.textures) {
       this.gl.deleteTexture(this.textures[key]);
@@ -14263,21 +14320,21 @@ var scenes = {
 var initialScene = "in-game"; // Then we add those scenes to the game object and ask it to start the initial scene
 
 game.addScenes(scenes);
-game.startScene(initialScene); // Here we setup a selector element to switch scenes from the webpage
-
-var selector = document.querySelector("#scenes");
-
-for (var name in scenes) {
-  var option = document.createElement("option");
-  option.text = name;
-  option.value = name;
-  selector.add(option);
+game.startScene(initialScene);
+/*
+// Here we setup a selector element to switch scenes from the webpage
+const selector: HTMLSelectElement = document.querySelector("#scenes");
+for(let name in scenes){
+    let option = document.createElement("option");
+    option.text = name;
+    option.value = name;
+    selector.add(option);
 }
-
 selector.value = initialScene;
-selector.addEventListener("change", function () {
-  game.startScene(selector.value);
+selector.addEventListener("change", ()=>{
+    game.startScene(selector.value);
 });
+*/
 },{"./common/game":"src/common/game.ts","./scenes/in-game":"src/scenes/in-game.tsx"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
@@ -14306,7 +14363,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34907" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43487" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
