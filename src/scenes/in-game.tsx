@@ -49,7 +49,20 @@ export default class CubemapScene extends Scene {
     anisotropic_filtering: number = 0; // This will hold the maximum number of samples that the anisotropic filtering is allowed to read. 1 is equivalent to isotropic filtering.
     fl: number = 0;
 
+    material = {
+        diffuse: vec3.fromValues(0.5,0.3,0.1),
+        specular: vec3.fromValues(1,1,1),
+        ambient: vec3.fromValues(0.5,0.3,0.1),
+        shininess: 20
+    };
 
+    // And this will store our directional light properties
+    light = {
+        diffuse: vec3.fromValues(1,1,1),
+        specular: vec3.fromValues(1,1,1),
+        ambient: vec3.fromValues(0.5,0.5,0.1),
+        direction: vec3.fromValues(1,1,1)
+    };
 
     // These are the 6 cubemap directions: -x, -y, -z, +x, +y, +z
     static readonly cubemapDirections = ['negz', 'negy', 'negx', 'posz', 'posy', 'posx']
@@ -315,7 +328,7 @@ export default class CubemapScene extends Scene {
         this.scalex[0]=this.randomInt(5, 10);
         this.scaley[0]=this.randomInt(3,5);
         this.scalez[0]=this.randomInt(5,10); 
-        for(let i=1;i<220;i++)
+        for(let i=1;i<240;i++)
         {
             this.transdirx[i]= this.randomInt(-20, 50);
             this.transdiry[i]= this.randomInt(0, 1450);
@@ -332,7 +345,7 @@ export default class CubemapScene extends Scene {
     
     private checkCollision(plyrPos: vec3)
     {
-        for(let i=0;i<220;i++)
+        for(let i=0;i<240;i++)
         {
             if(plyrPos[0] < this.transdirx[i] + this.scalex[i] && plyrPos[0] > this.transdirx[i] - this.scalex[i])
             if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] + 1.5 && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i])
@@ -347,7 +360,7 @@ export default class CubemapScene extends Scene {
 
     private onRight(plyrPos: vec3)
     {
-        for(let i=0;i<220;i++)
+        for(let i=0;i<240;i++)
         {
             if(plyrPos[0] < this.transdirx[i] + this.scalex[i] +2&& plyrPos[0] > this.transdirx[i] - this.scalex[i]-2)
             if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i]-5)
@@ -362,7 +375,7 @@ export default class CubemapScene extends Scene {
 
     private onLeft(plyrPos: vec3)
     {
-        for(let i=0;i<220;i++)
+        for(let i=0;i<240;i++)
         {
             if(plyrPos[0] < this.transdirx[i] + this.scalex[i] +2&& plyrPos[0] > this.transdirx[i] - this.scalex[i]-2)
             if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i]-5)
@@ -399,7 +412,7 @@ export default class CubemapScene extends Scene {
         this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
         this.programs['texture'].setUniform3f("cam_position", this.camera.position);
 
-        this.cameraPos-=0.052+performance.now()/950000;
+        this.cameraPos-=0.104+performance.now()/950000;
         this.camera.position = vec3.fromValues(0,this.cameraPos,0); 
         //console.log(this.camera.position[1])
         let M = mat4.create();
@@ -412,7 +425,7 @@ export default class CubemapScene extends Scene {
         if(this.PlyrPos < -20) this.PlyrPos = -20;
         if(!this.checkCollision(tvec))
         {
-            this.PlyrAlt-=0.06+performance.now()/1000000;
+            this.PlyrAlt-=0.12+performance.now()/1000000;
         }
         if(this.PlyrAlt <= 0) this.PlyrAlt = 0;
         if(this.PlyrAlt > this.camera.position[1] + 10)
@@ -430,6 +443,7 @@ export default class CubemapScene extends Scene {
         mat4.translate(M, M, tvec)
         mat4.scale(M, M, scal);
         mat4.rotateY(M,M, 9/7*Math.PI)
+        mat4.rotateY(M,M, performance.now()/150)
         mat4.rotateZ(M,M, this.PlyrOri-1)
         
         if(this.camera.position[1] <=0)
@@ -465,15 +479,33 @@ export default class CubemapScene extends Scene {
         }
 
         //console.log("Ori:", this.PlyrOri)
-        if(this.PlyrOri > 1) this.PlyrOri -= 0.005;
-        else if(this.PlyrOri <1) this.PlyrOri += 0.005;
+        if(this.PlyrOri > 1.1) this.PlyrOri -= 0.005;
+        else if(this.PlyrOri <1.1) this.PlyrOri += 0.005;
+
+        //Lighting
+        // Send light properties (remember to normalize the light direction)
+        this.programs['texture'].setUniform3f("light.diffuse", this.light.diffuse);
+        this.programs['texture'].setUniform3f("light.specular", this.light.specular);
+        this.programs['texture'].setUniform3f("light.ambient", this.light.ambient);
+        this.programs['texture'].setUniform3f("light.direction", vec3.normalize(vec3.create(), this.light.direction));
+
+          // Send material properties
+          this.programs['texture'].setUniform3f("material.diffuse", [0.5,0.5,0.5]);
+          this.programs['texture'].setUniform3f("material.specular", [0.2,0.2,0.2]);
+          this.programs['texture'].setUniform3f("material.ambient", [0.1,0.1,0.1]);
+          this.programs['texture'].setUniform1f("material.shininess", 2);
+
+
+
+
+
         this.programs['texture'].setUniformMatrix4fv("M", false, M);
         // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
         this.programs['texture'].setUniformMatrix4fv("M_it", true, mat4.invert(mat4.create(), M));
 
-        this.programs['texture'].setUniform4f("tint", [0/255, 50/255, 0/255, 1]);
-        this.programs['texture'].setUniform1f('refraction', this.refraction?1:0);
-        this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
+        //this.programs['texture'].setUniform4f("tint", [0/255, 50/255, 0/255, 1]);
+        //this.programs['texture'].setUniform1f('refraction', this.refraction?1:0);
+        //this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
 
         this.gl.activeTexture(this.gl.TEXTURE0);
         this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
@@ -525,7 +557,7 @@ export default class CubemapScene extends Scene {
 
          
         this.programs['obstacle'].use();
-        for (let i = 0; i < 220; i++) {
+        for (let i = 0; i < 240; i++) {
     
         let tveco = vec3.fromValues(this.transdirx[i],this.transdiry[i],this.transdirz[i]);        //Need to be randomized
         let sveco = vec3.fromValues(this.scalex[i],this.scaley[i],this.scalez[i]);        //Need to be randomized

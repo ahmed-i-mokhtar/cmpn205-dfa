@@ -13934,6 +13934,19 @@ function (_super) {
     _this.anisotropic_filtering = 0; // This will hold the maximum number of samples that the anisotropic filtering is allowed to read. 1 is equivalent to isotropic filtering.
 
     _this.fl = 0;
+    _this.material = {
+      diffuse: gl_matrix_1.vec3.fromValues(0.5, 0.3, 0.1),
+      specular: gl_matrix_1.vec3.fromValues(1, 1, 1),
+      ambient: gl_matrix_1.vec3.fromValues(0.5, 0.3, 0.1),
+      shininess: 20
+    }; // And this will store our directional light properties
+
+    _this.light = {
+      diffuse: gl_matrix_1.vec3.fromValues(1, 1, 1),
+      specular: gl_matrix_1.vec3.fromValues(1, 1, 1),
+      ambient: gl_matrix_1.vec3.fromValues(0.5, 0.5, 0.1),
+      direction: gl_matrix_1.vec3.fromValues(1, 1, 1)
+    };
     return _this;
   }
 
@@ -14318,7 +14331,7 @@ function (_super) {
     this.scaley[0] = this.randomInt(3, 5);
     this.scalez[0] = this.randomInt(5, 10);
 
-    for (var i = 1; i < 220; i++) {
+    for (var i = 1; i < 240; i++) {
       this.transdirx[i] = this.randomInt(-20, 50);
       this.transdiry[i] = this.randomInt(0, 1450);
       this.transdirz[i] = 50 - this.transdirx[i];
@@ -14333,7 +14346,7 @@ function (_super) {
   };
 
   CubemapScene.prototype.checkCollision = function (plyrPos) {
-    for (var i = 0; i < 220; i++) {
+    for (var i = 0; i < 240; i++) {
       if (plyrPos[0] < this.transdirx[i] + this.scalex[i] && plyrPos[0] > this.transdirx[i] - this.scalex[i]) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] + 1.5 && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i]) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] && plyrPos[2] > this.transdirz[i] - this.scalez[i]) {
         return true;
       }
@@ -14343,7 +14356,7 @@ function (_super) {
   };
 
   CubemapScene.prototype.onRight = function (plyrPos) {
-    for (var i = 0; i < 220; i++) {
+    for (var i = 0; i < 240; i++) {
       if (plyrPos[0] < this.transdirx[i] + this.scalex[i] + 2 && plyrPos[0] > this.transdirx[i] - this.scalex[i] - 2) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i] - 5) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] + 2 && plyrPos[2] > this.transdirz[i] - this.scalez[i] - 2) if (plyrPos[0] - this.transdirx[i] - this.scalex[i] + 2 > plyrPos[2] - this.transdirz[i] + this.scalez[i] - 2) {
         return true;
       }
@@ -14353,7 +14366,7 @@ function (_super) {
   };
 
   CubemapScene.prototype.onLeft = function (plyrPos) {
-    for (var i = 0; i < 220; i++) {
+    for (var i = 0; i < 240; i++) {
       if (plyrPos[0] < this.transdirx[i] + this.scalex[i] + 2 && plyrPos[0] > this.transdirx[i] - this.scalex[i] - 2) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i] - 5) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] + 2 && plyrPos[2] > this.transdirz[i] - this.scalez[i] - 2) if (plyrPos[0] - this.transdirx[i] - this.scalex[i] + 2 < plyrPos[2] - this.transdirz[i] + this.scalez[i] - 2) {
         return true;
       }
@@ -14381,7 +14394,7 @@ function (_super) {
     this.programs['texture'].use();
     this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
     this.programs['texture'].setUniform3f("cam_position", this.camera.position);
-    this.cameraPos -= 0.052 + performance.now() / 950000;
+    this.cameraPos -= 0.104 + performance.now() / 950000;
     this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0); //console.log(this.camera.position[1])
 
     var M = gl_matrix_1.mat4.create();
@@ -14393,7 +14406,7 @@ function (_super) {
     if (this.PlyrPos < -20) this.PlyrPos = -20;
 
     if (!this.checkCollision(tvec)) {
-      this.PlyrAlt -= 0.06 + performance.now() / 1000000;
+      this.PlyrAlt -= 0.12 + performance.now() / 1000000;
     }
 
     if (this.PlyrAlt <= 0) this.PlyrAlt = 0;
@@ -14411,6 +14424,7 @@ function (_super) {
     gl_matrix_1.mat4.translate(M, M, tvec);
     gl_matrix_1.mat4.scale(M, M, scal);
     gl_matrix_1.mat4.rotateY(M, M, 9 / 7 * Math.PI);
+    gl_matrix_1.mat4.rotateY(M, M, performance.now() / 150);
     gl_matrix_1.mat4.rotateZ(M, M, this.PlyrOri - 1);
 
     if (this.camera.position[1] <= 0) {
@@ -14442,13 +14456,24 @@ function (_super) {
       } //console.log("Ori:", this.PlyrOri)
 
 
-    if (this.PlyrOri > 1) this.PlyrOri -= 0.005;else if (this.PlyrOri < 1) this.PlyrOri += 0.005;
+    if (this.PlyrOri > 1.1) this.PlyrOri -= 0.005;else if (this.PlyrOri < 1.1) this.PlyrOri += 0.005; //Lighting
+    // Send light properties (remember to normalize the light direction)
+
+    this.programs['texture'].setUniform3f("light.diffuse", this.light.diffuse);
+    this.programs['texture'].setUniform3f("light.specular", this.light.specular);
+    this.programs['texture'].setUniform3f("light.ambient", this.light.ambient);
+    this.programs['texture'].setUniform3f("light.direction", gl_matrix_1.vec3.normalize(gl_matrix_1.vec3.create(), this.light.direction)); // Send material properties
+
+    this.programs['texture'].setUniform3f("material.diffuse", [0.5, 0.5, 0.5]);
+    this.programs['texture'].setUniform3f("material.specular", [0.2, 0.2, 0.2]);
+    this.programs['texture'].setUniform3f("material.ambient", [0.1, 0.1, 0.1]);
+    this.programs['texture'].setUniform1f("material.shininess", 2);
     this.programs['texture'].setUniformMatrix4fv("M", false, M); // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
 
-    this.programs['texture'].setUniformMatrix4fv("M_it", true, gl_matrix_1.mat4.invert(gl_matrix_1.mat4.create(), M));
-    this.programs['texture'].setUniform4f("tint", [0 / 255, 50 / 255, 0 / 255, 1]);
-    this.programs['texture'].setUniform1f('refraction', this.refraction ? 1 : 0);
-    this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
+    this.programs['texture'].setUniformMatrix4fv("M_it", true, gl_matrix_1.mat4.invert(gl_matrix_1.mat4.create(), M)); //this.programs['texture'].setUniform4f("tint", [0/255, 50/255, 0/255, 1]);
+    //this.programs['texture'].setUniform1f('refraction', this.refraction?1:0);
+    //this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
+
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_CUBE_MAP, this.textures['environment']);
     this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
@@ -14483,7 +14508,7 @@ function (_super) {
 
     this.programs['obstacle'].use();
 
-    for (var i = 0; i < 220; i++) {
+    for (var i = 0; i < 240; i++) {
       var tveco = gl_matrix_1.vec3.fromValues(this.transdirx[i], this.transdiry[i], this.transdirz[i]); //Need to be randomized
 
       var sveco = gl_matrix_1.vec3.fromValues(this.scalex[i], this.scaley[i], this.scalez[i]); //Need to be randomized
@@ -14691,7 +14716,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36885" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37977" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

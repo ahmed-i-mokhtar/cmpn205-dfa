@@ -13,13 +13,48 @@ uniform vec4 tint;
 uniform bool refraction; // if false, do reflection, if true, do refraction.
 uniform float refractive_index;
 
-void main(){
+
+
+struct Material {
+    vec3 diffuse;
+    vec3 specular;
+    vec3 ambient;
+    float shininess;
+};
+uniform Material material;
+
+struct DirectionalLight {
+    vec3 diffuse;
+    vec3 specular;
+    vec3 ambient;
     vec3 direction;
-    if(refraction){
-        direction = refract(v_view, normalize(v_normal), refractive_index);
-    } else {
-        direction = reflect(v_view, normalize(v_normal));    
-    }
-    // Note that cube samplers take a direction (vec3) not a texture coordinate (vec2)
-    color = texture(cube_texture_sampler, direction) * v_color * tint;
+};
+uniform DirectionalLight light;
+
+float diffuse(vec3 n, vec3 l){
+    //Diffuse (Lambert) term computation: reflected light = cosine the light incidence angle on the surface
+    //max(0, ..) is used since light shouldn't be negative
+    return max(0.0f, dot(n,l));
+}
+
+float specular(vec3 n, vec3 l, vec3 v, float shininess){
+    //Phong Specular term computation
+    return pow(max(0.0f, dot(v,reflect(-l, n))), shininess);
+}
+
+
+
+
+
+
+void main(){
+    vec3 n = normalize(v_normal);
+    vec3 v = normalize(v_view);
+    vec3 l = -light.direction; // For directional lights, the light vector is the inverse of the light direction
+    color = vec4(
+        material.ambient*light.ambient + 
+        material.diffuse*light.diffuse*diffuse(n, l) + 
+        material.specular*light.specular*specular(n, l, v, material.shininess),
+        1.0f
+    );
 }
