@@ -29,6 +29,9 @@ export default class CubemapScene extends Scene {
     windSound: Howl;
     flapSound: Howl;
     themeSound: Howl;
+    rsgSound: Howl;
+    winSound: Howl;
+    loseSound: Howl;
 
     currentMesh: string;
     tint: [number, number, number] = [255, 255, 255];
@@ -44,7 +47,7 @@ export default class CubemapScene extends Scene {
     scalez:  {[index: number]: number}={};
     anisotropy_ext: EXT_texture_filter_anisotropic; // This will hold the anisotropic filtering extension
     anisotropic_filtering: number = 0; // This will hold the maximum number of samples that the anisotropic filtering is allowed to read. 1 is equivalent to isotropic filtering.
-
+    fl: number = 0;
 
 
 
@@ -56,6 +59,9 @@ export default class CubemapScene extends Scene {
         let windDir ='sounds/wind.wav'
         let flapDir = 'sounds/flapping.wav'
         let themeDir = 'sounds/acdc-are-you-ready.mp3'
+        let rsgDir = 'sounds/rsg.mp3'
+        let winDir = 'sounds/win.mp3'
+        let loseDir = 'sounds/lose.mp3'
 
         this.windSound = new Howl({
             src: [windDir],
@@ -108,7 +114,60 @@ export default class CubemapScene extends Scene {
             onfade: () => console.log('onfade'),
             onunlock: () => console.log('onunlock'),
           });
+
+          this.rsgSound = new Howl({
+            src: [rsgDir],
+            format: ['mp3'],
+            loop: false,
+            volume: 0.5,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
+
+          this.winSound = new Howl({
+            src: [winDir],
+            format: ['mp3'],
+            loop: false,
+            volume: 0.5,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
         
+          this.loseSound = new Howl({
+            src: [loseDir],
+            format: ['mp3'],
+            loop: false,
+            volume: 0.5,
+            onload: () => console.log('onload'),
+            onloaderror: (e, msg) => console.log('onloaderror', e, msg),
+            onplayerror: (e, msg) => console.log('onplayerror', e, msg),
+            onplay: () => console.log('onplay'),
+            onend: () => console.log('onend'),
+            onpause: () => console.log('onpause'),
+            onrate: () => console.log('onrate'),
+            onstop: () => console.log('onstop'),
+            onseek: () => console.log('onseek'),
+            onfade: () => console.log('onfade'),
+            onunlock: () => console.log('onunlock'),
+          });
 
         this.game.loader.load({
             ["texture-cube.vert"]:{url:'shaders/texture-cube.vert', type:'text'},
@@ -118,7 +177,8 @@ export default class CubemapScene extends Scene {
             ["sky-cube.vert"]:{url:'shaders/sky-cube.vert', type:'text'},
             ["sky-cube.frag"]:{url:'shaders/sky-cube.frag', type:'text'},
             ["moon-texture"]:{url:'shaders/sk3.jpg', type:'image'},
-            ["suzanne"]:{url:'models/Suzanne/man.obj', type:'text'},
+            ["suzanne"]:{url:'models/Suzanne/Mi28.obj', type:'text'},
+            ["hel"]:{url:'images/1.png', type:'image'},
             // We will load all the 6 textures to create cubemap
             
             ...Object.fromEntries(CubemapScene.cubemapDirections.map(dir=>[dir, {url:`images/Vasa/${dir}.jpg`, type:'image'}]))
@@ -130,6 +190,10 @@ export default class CubemapScene extends Scene {
         this.windSound.play();
         this.flapSound.play();
         this.themeSound.play();
+        this.rsgSound.play();
+        
+
+
         this.themeSound.volume = 0.7;
         
 
@@ -202,6 +266,29 @@ export default class CubemapScene extends Scene {
         // if it is supported, we will set our default filtering samples to the maximum value allowed by the device.
         if(this.anisotropy_ext) this.anisotropic_filtering = this.gl.getParameter(this.anisotropy_ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
 
+
+/*Obstacles Texture*/ 
+        this.textures['suzanne'] = this.gl.createTexture();
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['suzanne']);
+        this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources['hel']);
+        this.gl.generateMipmap(this.gl.TEXTURE_2D);
+        // Instead of using a sampler, we send the parameter directly to the texture here.
+        // While we prefer using samplers since it is a clear separation of responsibilities, anisotropic filtering is yet to be supported by sampler and this issue is still not closed on the WebGL github repository.  
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR);
+        // To keep things organized, we will use two classes we create to handle the camera
+        // The camera class contains all the information about the camera
+        // The controller class controls the camera
+
+        this.anisotropy_ext = this.gl.getExtension('EXT_texture_filter_anisotropic');
+        // The device does not support anisotropic fltering, the extension will be null. So we need to check before using it.
+        // if it is supported, we will set our default filtering samples to the maximum value allowed by the device.
+        if(this.anisotropy_ext) this.anisotropic_filtering = this.gl.getParameter(this.anisotropy_ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+
+
         this.camera = new Camera();
         this.camera.type = 'perspective';
         this.camera.position = vec3.fromValues(0,this.cameraPos,0);
@@ -228,7 +315,7 @@ export default class CubemapScene extends Scene {
         this.scalex[0]=this.randomInt(5, 10);
         this.scaley[0]=this.randomInt(3,5);
         this.scalez[0]=this.randomInt(5,10); 
-        for(let i=1;i<200;i++)
+        for(let i=1;i<220;i++)
         {
             this.transdirx[i]= this.randomInt(-20, 50);
             this.transdiry[i]= this.randomInt(0, 1450);
@@ -245,10 +332,10 @@ export default class CubemapScene extends Scene {
     
     private checkCollision(plyrPos: vec3)
     {
-        for(let i=0;i<200;i++)
+        for(let i=0;i<220;i++)
         {
             if(plyrPos[0] < this.transdirx[i] + this.scalex[i] && plyrPos[0] > this.transdirx[i] - this.scalex[i])
-            if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i])
+            if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] + 1.5 && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i])
             if(plyrPos[2] < this.transdirz[i] + this.scalez[i] && plyrPos[2] > this.transdirz[i] - this.scalez[i])
             {
                 return true;
@@ -260,7 +347,7 @@ export default class CubemapScene extends Scene {
 
     private onRight(plyrPos: vec3)
     {
-        for(let i=0;i<200;i++)
+        for(let i=0;i<220;i++)
         {
             if(plyrPos[0] < this.transdirx[i] + this.scalex[i] +2&& plyrPos[0] > this.transdirx[i] - this.scalex[i]-2)
             if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i]-5)
@@ -275,7 +362,7 @@ export default class CubemapScene extends Scene {
 
     private onLeft(plyrPos: vec3)
     {
-        for(let i=0;i<200;i++)
+        for(let i=0;i<220;i++)
         {
             if(plyrPos[0] < this.transdirx[i] + this.scalex[i] +2&& plyrPos[0] > this.transdirx[i] - this.scalex[i]-2)
             if(plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i]-5)
@@ -312,7 +399,7 @@ export default class CubemapScene extends Scene {
         this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
         this.programs['texture'].setUniform3f("cam_position", this.camera.position);
 
-        this.cameraPos-=0.05+performance.now()/950000;
+        this.cameraPos-=0.052+performance.now()/950000;
         this.camera.position = vec3.fromValues(0,this.cameraPos,0); 
         //console.log(this.camera.position[1])
         let M = mat4.create();
@@ -320,19 +407,44 @@ export default class CubemapScene extends Scene {
         let tvec = vec3.fromValues(this.PlyrPos,this.PlyrAlt,zmp)
 
         //console.log("Player Position: ", tvec);
-        //let scal = vec3.fromValues(1.5,1.5,1.5)
+        let scal = vec3.fromValues(2,2,2)
         if(this.PlyrPos > 50) this.PlyrPos = 50;
         if(this.PlyrPos < -20) this.PlyrPos = -20;
         if(!this.checkCollision(tvec))
         {
-            this.PlyrAlt-=0.055+performance.now()/1000000;
+            this.PlyrAlt-=0.06+performance.now()/1000000;
         }
         if(this.PlyrAlt <= 0) this.PlyrAlt = 0;
-
+        if(this.PlyrAlt > this.camera.position[1] + 10)
+            {
+                if(this.fl==0)
+            {
+                this.themeSound.stop();
+                this.loseSound.play();
+                this.PlyrAlt = 0;
+                this.end();
+                
+            }
+            }
         //mat4.scale(M,M,scal)
         mat4.translate(M, M, tvec)
+        mat4.scale(M, M, scal);
         mat4.rotateY(M,M, 9/7*Math.PI)
         mat4.rotateZ(M,M, this.PlyrOri-1)
+        
+        if(this.camera.position[1] <=0)
+        {
+            console.log("Reached Ground");
+            this.camera.position[1] =0;
+            mat4.rotateY(M,M, performance.now()/100)
+            this.PlyrAlt = 0
+            if(this.fl==0)
+            {
+                this.winSound.play();
+                this.fl=1;
+            }
+        }
+
         if(this.game.input.isKeyDown("a")) // Go Left
         {
             if(!this.onLeft(tvec))
@@ -359,7 +471,7 @@ export default class CubemapScene extends Scene {
         // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
         this.programs['texture'].setUniformMatrix4fv("M_it", true, mat4.invert(mat4.create(), M));
 
-        this.programs['texture'].setUniform4f("tint", [0/255, 0/255, 0/255, 1]);
+        this.programs['texture'].setUniform4f("tint", [0/255, 50/255, 0/255, 1]);
         this.programs['texture'].setUniform1f('refraction', this.refraction?1:0);
         this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
 
@@ -369,18 +481,17 @@ export default class CubemapScene extends Scene {
         
         this.gl.bindSampler(0, this.sampler);
         this.currentMesh = 'suzanne'
-
+        this.gl.activeTexture(this.gl.TEXTURE0);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['hel']);
+        this.programs['obstacle'].setUniform1i('texture_sampler', 0);
+        // If anisotropic filtering is supported, we send the parameter to the texture paramters.
+        if(this.anisotropy_ext) this.gl.texParameterf(this.gl.TEXTURE_2D, this.anisotropy_ext.TEXTURE_MAX_ANISOTROPY_EXT, this.anisotropic_filtering);
+        
         this.meshes['suzanne'].draw(this.gl.TRIANGLES);
 
-        //console.log(this.camera.position[1])
-        //console.log('Player Altitude: ', this.PlyrAlt)
-        //Game Ending
-        if(this.camera.position[1] <=0)
-        {
-            console.log("Reached Ground");
-            this.camera.position[1] =0;
-        }
 
+        //Game Ending
+     
 
 
         if(this.drawSky){
@@ -414,7 +525,7 @@ export default class CubemapScene extends Scene {
 
          
         this.programs['obstacle'].use();
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < 220; i++) {
     
         let tveco = vec3.fromValues(this.transdirx[i],this.transdiry[i],this.transdirz[i]);        //Need to be randomized
         let sveco = vec3.fromValues(this.scalex[i],this.scaley[i],this.scalez[i]);        //Need to be randomized
@@ -424,8 +535,7 @@ export default class CubemapScene extends Scene {
         let diff = mat4.create();
         mat4.fromRotationTranslationScale(Mo,rveco,tveco,sveco);
         let VPo = this.camera.ViewProjectionMatrix; // We get the VPo matrix from our camera class
-        if(mat4.equals(M, Mo))
-            console.log("Hit")
+   
         let MVPo = mat4.create();
         mat4.mul(MVPo, VPo, Mo);
 

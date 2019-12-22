@@ -13933,6 +13933,7 @@ function (_super) {
     _this.scalez = {};
     _this.anisotropic_filtering = 0; // This will hold the maximum number of samples that the anisotropic filtering is allowed to read. 1 is equivalent to isotropic filtering.
 
+    _this.fl = 0;
     return _this;
   }
 
@@ -13942,6 +13943,9 @@ function (_super) {
     var windDir = 'sounds/wind.wav';
     var flapDir = 'sounds/flapping.wav';
     var themeDir = 'sounds/acdc-are-you-ready.mp3';
+    var rsgDir = 'sounds/rsg.mp3';
+    var winDir = 'sounds/win.mp3';
+    var loseDir = 'sounds/lose.mp3';
     this.windSound = new howler_1.Howl({
       src: [windDir],
       format: ['wav'],
@@ -14057,6 +14061,123 @@ function (_super) {
         return console.log('onunlock');
       }
     });
+    this.rsgSound = new howler_1.Howl({
+      src: [rsgDir],
+      format: ['mp3'],
+      loop: false,
+      volume: 0.5,
+      onload: function onload() {
+        return console.log('onload');
+      },
+      onloaderror: function onloaderror(e, msg) {
+        return console.log('onloaderror', e, msg);
+      },
+      onplayerror: function onplayerror(e, msg) {
+        return console.log('onplayerror', e, msg);
+      },
+      onplay: function onplay() {
+        return console.log('onplay');
+      },
+      onend: function onend() {
+        return console.log('onend');
+      },
+      onpause: function onpause() {
+        return console.log('onpause');
+      },
+      onrate: function onrate() {
+        return console.log('onrate');
+      },
+      onstop: function onstop() {
+        return console.log('onstop');
+      },
+      onseek: function onseek() {
+        return console.log('onseek');
+      },
+      onfade: function onfade() {
+        return console.log('onfade');
+      },
+      onunlock: function onunlock() {
+        return console.log('onunlock');
+      }
+    });
+    this.winSound = new howler_1.Howl({
+      src: [winDir],
+      format: ['mp3'],
+      loop: false,
+      volume: 0.5,
+      onload: function onload() {
+        return console.log('onload');
+      },
+      onloaderror: function onloaderror(e, msg) {
+        return console.log('onloaderror', e, msg);
+      },
+      onplayerror: function onplayerror(e, msg) {
+        return console.log('onplayerror', e, msg);
+      },
+      onplay: function onplay() {
+        return console.log('onplay');
+      },
+      onend: function onend() {
+        return console.log('onend');
+      },
+      onpause: function onpause() {
+        return console.log('onpause');
+      },
+      onrate: function onrate() {
+        return console.log('onrate');
+      },
+      onstop: function onstop() {
+        return console.log('onstop');
+      },
+      onseek: function onseek() {
+        return console.log('onseek');
+      },
+      onfade: function onfade() {
+        return console.log('onfade');
+      },
+      onunlock: function onunlock() {
+        return console.log('onunlock');
+      }
+    });
+    this.loseSound = new howler_1.Howl({
+      src: [loseDir],
+      format: ['mp3'],
+      loop: false,
+      volume: 0.5,
+      onload: function onload() {
+        return console.log('onload');
+      },
+      onloaderror: function onloaderror(e, msg) {
+        return console.log('onloaderror', e, msg);
+      },
+      onplayerror: function onplayerror(e, msg) {
+        return console.log('onplayerror', e, msg);
+      },
+      onplay: function onplay() {
+        return console.log('onplay');
+      },
+      onend: function onend() {
+        return console.log('onend');
+      },
+      onpause: function onpause() {
+        return console.log('onpause');
+      },
+      onrate: function onrate() {
+        return console.log('onrate');
+      },
+      onstop: function onstop() {
+        return console.log('onstop');
+      },
+      onseek: function onseek() {
+        return console.log('onseek');
+      },
+      onfade: function onfade() {
+        return console.log('onfade');
+      },
+      onunlock: function onunlock() {
+        return console.log('onunlock');
+      }
+    });
     this.game.loader.load(__assign((_a = {}, _a["texture-cube.vert"] = {
       url: 'shaders/texture-cube.vert',
       type: 'text'
@@ -14079,8 +14200,11 @@ function (_super) {
       url: 'shaders/sk3.jpg',
       type: 'image'
     }, _a["suzanne"] = {
-      url: 'models/Suzanne/man.obj',
+      url: 'models/Suzanne/Mi28.obj',
       type: 'text'
+    }, _a["hel"] = {
+      url: 'images/1.png',
+      type: 'image'
     }, _a), Object.fromEntries(CubemapScene.cubemapDirections.map(function (dir) {
       return [dir, {
         url: "images/Vasa/" + dir + ".jpg",
@@ -14093,6 +14217,7 @@ function (_super) {
     this.windSound.play();
     this.flapSound.play();
     this.themeSound.play();
+    this.rsgSound.play();
     this.themeSound.volume = 0.7;
     this.programs['obstacle'] = new shader_program_1.default(this.gl);
     this.programs['obstacle'].attach(this.game.loader.resources["texture.vert"], this.gl.VERTEX_SHADER);
@@ -14150,6 +14275,26 @@ function (_super) {
     // if it is supported, we will set our default filtering samples to the maximum value allowed by the device.
 
     if (this.anisotropy_ext) this.anisotropic_filtering = this.gl.getParameter(this.anisotropy_ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+    /*Obstacles Texture*/
+
+    this.textures['suzanne'] = this.gl.createTexture();
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['suzanne']);
+    this.gl.pixelStorei(this.gl.UNPACK_ALIGNMENT, 4);
+    this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, this.game.loader.resources['hel']);
+    this.gl.generateMipmap(this.gl.TEXTURE_2D); // Instead of using a sampler, we send the parameter directly to the texture here.
+    // While we prefer using samplers since it is a clear separation of responsibilities, anisotropic filtering is yet to be supported by sampler and this issue is still not closed on the WebGL github repository.  
+
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_S, this.gl.REPEAT);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.REPEAT);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.LINEAR);
+    this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.LINEAR_MIPMAP_LINEAR); // To keep things organized, we will use two classes we create to handle the camera
+    // The camera class contains all the information about the camera
+    // The controller class controls the camera
+
+    this.anisotropy_ext = this.gl.getExtension('EXT_texture_filter_anisotropic'); // The device does not support anisotropic fltering, the extension will be null. So we need to check before using it.
+    // if it is supported, we will set our default filtering samples to the maximum value allowed by the device.
+
+    if (this.anisotropy_ext) this.anisotropic_filtering = this.gl.getParameter(this.anisotropy_ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
     this.camera = new camera_1.default();
     this.camera.type = 'perspective';
     this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0);
@@ -14173,7 +14318,7 @@ function (_super) {
     this.scaley[0] = this.randomInt(3, 5);
     this.scalez[0] = this.randomInt(5, 10);
 
-    for (var i = 1; i < 200; i++) {
+    for (var i = 1; i < 220; i++) {
       this.transdirx[i] = this.randomInt(-20, 50);
       this.transdiry[i] = this.randomInt(0, 1450);
       this.transdirz[i] = 50 - this.transdirx[i];
@@ -14188,8 +14333,8 @@ function (_super) {
   };
 
   CubemapScene.prototype.checkCollision = function (plyrPos) {
-    for (var i = 0; i < 200; i++) {
-      if (plyrPos[0] < this.transdirx[i] + this.scalex[i] && plyrPos[0] > this.transdirx[i] - this.scalex[i]) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i]) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] && plyrPos[2] > this.transdirz[i] - this.scalez[i]) {
+    for (var i = 0; i < 220; i++) {
+      if (plyrPos[0] < this.transdirx[i] + this.scalex[i] && plyrPos[0] > this.transdirx[i] - this.scalex[i]) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] + 1.5 && plyrPos[1] >= this.transdiry[i] - 0.5 + this.scaley[i]) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] && plyrPos[2] > this.transdirz[i] - this.scalez[i]) {
         return true;
       }
     }
@@ -14198,7 +14343,7 @@ function (_super) {
   };
 
   CubemapScene.prototype.onRight = function (plyrPos) {
-    for (var i = 0; i < 200; i++) {
+    for (var i = 0; i < 220; i++) {
       if (plyrPos[0] < this.transdirx[i] + this.scalex[i] + 2 && plyrPos[0] > this.transdirx[i] - this.scalex[i] - 2) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i] - 5) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] + 2 && plyrPos[2] > this.transdirz[i] - this.scalez[i] - 2) if (plyrPos[0] - this.transdirx[i] - this.scalex[i] + 2 > plyrPos[2] - this.transdirz[i] + this.scalez[i] - 2) {
         return true;
       }
@@ -14208,7 +14353,7 @@ function (_super) {
   };
 
   CubemapScene.prototype.onLeft = function (plyrPos) {
-    for (var i = 0; i < 200; i++) {
+    for (var i = 0; i < 220; i++) {
       if (plyrPos[0] < this.transdirx[i] + this.scalex[i] + 2 && plyrPos[0] > this.transdirx[i] - this.scalex[i] - 2) if (plyrPos[1] <= this.transdiry[i] + this.scaley[i] && plyrPos[1] >= this.transdiry[i] - this.scaley[i] - 5) if (plyrPos[2] < this.transdirz[i] + this.scalez[i] + 2 && plyrPos[2] > this.transdirz[i] - this.scalez[i] - 2) if (plyrPos[0] - this.transdirx[i] - this.scalex[i] + 2 < plyrPos[2] - this.transdirz[i] + this.scalez[i] - 2) {
         return true;
       }
@@ -14236,26 +14381,49 @@ function (_super) {
     this.programs['texture'].use();
     this.programs['texture'].setUniformMatrix4fv("VP", false, this.camera.ViewProjectionMatrix);
     this.programs['texture'].setUniform3f("cam_position", this.camera.position);
-    this.cameraPos -= 0.05 + performance.now() / 950000;
+    this.cameraPos -= 0.052 + performance.now() / 950000;
     this.camera.position = gl_matrix_1.vec3.fromValues(0, this.cameraPos, 0); //console.log(this.camera.position[1])
 
     var M = gl_matrix_1.mat4.create();
     var zmp = 50 - this.PlyrPos;
     var tvec = gl_matrix_1.vec3.fromValues(this.PlyrPos, this.PlyrAlt, zmp); //console.log("Player Position: ", tvec);
-    //let scal = vec3.fromValues(1.5,1.5,1.5)
 
+    var scal = gl_matrix_1.vec3.fromValues(2, 2, 2);
     if (this.PlyrPos > 50) this.PlyrPos = 50;
     if (this.PlyrPos < -20) this.PlyrPos = -20;
 
     if (!this.checkCollision(tvec)) {
-      this.PlyrAlt -= 0.055 + performance.now() / 1000000;
+      this.PlyrAlt -= 0.06 + performance.now() / 1000000;
     }
 
-    if (this.PlyrAlt <= 0) this.PlyrAlt = 0; //mat4.scale(M,M,scal)
+    if (this.PlyrAlt <= 0) this.PlyrAlt = 0;
+
+    if (this.PlyrAlt > this.camera.position[1] + 10) {
+      if (this.fl == 0) {
+        this.themeSound.stop();
+        this.loseSound.play();
+        this.PlyrAlt = 0;
+        this.end();
+      }
+    } //mat4.scale(M,M,scal)
+
 
     gl_matrix_1.mat4.translate(M, M, tvec);
+    gl_matrix_1.mat4.scale(M, M, scal);
     gl_matrix_1.mat4.rotateY(M, M, 9 / 7 * Math.PI);
     gl_matrix_1.mat4.rotateZ(M, M, this.PlyrOri - 1);
+
+    if (this.camera.position[1] <= 0) {
+      console.log("Reached Ground");
+      this.camera.position[1] = 0;
+      gl_matrix_1.mat4.rotateY(M, M, performance.now() / 100);
+      this.PlyrAlt = 0;
+
+      if (this.fl == 0) {
+        this.winSound.play();
+        this.fl = 1;
+      }
+    }
 
     if (this.game.input.isKeyDown("a")) // Go Left
       {
@@ -14278,7 +14446,7 @@ function (_super) {
     this.programs['texture'].setUniformMatrix4fv("M", false, M); // We send the model matrix inverse transpose since normals are transformed by the inverse transpose to get correct world-space normals
 
     this.programs['texture'].setUniformMatrix4fv("M_it", true, gl_matrix_1.mat4.invert(gl_matrix_1.mat4.create(), M));
-    this.programs['texture'].setUniform4f("tint", [0 / 255, 0 / 255, 0 / 255, 1]);
+    this.programs['texture'].setUniform4f("tint", [0 / 255, 50 / 255, 0 / 255, 1]);
     this.programs['texture'].setUniform1f('refraction', this.refraction ? 1 : 0);
     this.programs['texture'].setUniform1f('refractive_index', this.refractiveIndex);
     this.gl.activeTexture(this.gl.TEXTURE0);
@@ -14286,14 +14454,12 @@ function (_super) {
     this.programs['texture'].setUniform1i('cube_texture_sampler', 0);
     this.gl.bindSampler(0, this.sampler);
     this.currentMesh = 'suzanne';
-    this.meshes['suzanne'].draw(this.gl.TRIANGLES); //console.log(this.camera.position[1])
-    //console.log('Player Altitude: ', this.PlyrAlt)
-    //Game Ending
+    this.gl.activeTexture(this.gl.TEXTURE0);
+    this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures['hel']);
+    this.programs['obstacle'].setUniform1i('texture_sampler', 0); // If anisotropic filtering is supported, we send the parameter to the texture paramters.
 
-    if (this.camera.position[1] <= 0) {
-      console.log("Reached Ground");
-      this.camera.position[1] = 0;
-    }
+    if (this.anisotropy_ext) this.gl.texParameterf(this.gl.TEXTURE_2D, this.anisotropy_ext.TEXTURE_MAX_ANISOTROPY_EXT, this.anisotropic_filtering);
+    this.meshes['suzanne'].draw(this.gl.TRIANGLES); //Game Ending
 
     if (this.drawSky) {
       this.gl.cullFace(this.gl.FRONT);
@@ -14317,7 +14483,7 @@ function (_super) {
 
     this.programs['obstacle'].use();
 
-    for (var i = 0; i < 200; i++) {
+    for (var i = 0; i < 220; i++) {
       var tveco = gl_matrix_1.vec3.fromValues(this.transdirx[i], this.transdiry[i], this.transdirz[i]); //Need to be randomized
 
       var sveco = gl_matrix_1.vec3.fromValues(this.scalex[i], this.scaley[i], this.scalez[i]); //Need to be randomized
@@ -14329,7 +14495,6 @@ function (_super) {
       gl_matrix_1.mat4.fromRotationTranslationScale(Mo, rveco, tveco, sveco);
       var VPo = this.camera.ViewProjectionMatrix; // We get the VPo matrix from our camera class
 
-      if (gl_matrix_1.mat4.equals(M, Mo)) console.log("Hit");
       var MVPo = gl_matrix_1.mat4.create();
       gl_matrix_1.mat4.mul(MVPo, VPo, Mo);
       this.programs['obstacle'].setUniformMatrix4fv("MVP", false, MVPo);
@@ -14526,7 +14691,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43487" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36885" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
